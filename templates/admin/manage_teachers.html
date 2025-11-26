@@ -1,0 +1,634 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý Giáo Viên - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .teacher-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .subject-checkbox:checked {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    }
+
+    .subject-checkbox {
+    cursor: pointer;
+    }
+    
+    .subject-badge {
+        font-size: 0.7rem;
+        margin: 2px;
+    }
+    
+    .stats-card {
+        border-radius: 12px;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .action-buttons {
+        white-space: nowrap;
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .online { background-color: #198754; }
+    .offline { background-color: #6c757d; }
+    .busy { background-color: #ffc107; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-chalkboard-teacher me-2"></i>Quản lý Giáo Viên
+    </h1>
+    <div>
+        <!-- THÊM NÚT EXPORT PDF -->
+        <button class="btn btn-danger me-2" onclick="exportTeachersPDF()">
+            <i class="fas fa-file-pdf me-2"></i>Export PDF
+        </button>
+    </div>
+</div>
+
+<!-- Teacher Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card border-left-primary shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Tổng Giáo Viên
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_teachers }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card border-left-success shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Đang hoạt động
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.active_teachers }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card border-left-info shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Môn học phụ trách
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_subjects }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-book fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stats-card border-left-warning shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Lớp phụ trách
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_classes }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-school fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label">Tìm kiếm</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Tên, email, mã GV..." id="searchInput">
+                    <button class="btn btn-outline-secondary" type="button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Bộ môn</label>
+                <select class="form-select" id="departmentFilter">
+                    <option value="">Tất cả</option>
+                    <option value="cntt">Công nghệ thông tin</option>
+                    <option value="csdl">Cơ sở dữ liệu</option>
+                    <option value="nmhm">Nhập môn học máy </option>
+                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                    <option value="nn">Ngôn ngữ anh</option>
+                    <option value="kt">Kế Toán</option>
+                    <option value="qtkd">Quản trị kinh doanh</option>
+                    <option value="dl">Du lịch</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="active">Đang làm việc</option>
+                    <option value="inactive">Nghỉ việc</option>
+                    <option value="busy">Bận</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="fas fa-redo me-2"></i>Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Teachers Table -->
+<div class="card shadow">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-list me-2"></i>Danh sách Giáo Viên
+        </h5>
+        <span class="badge bg-primary">{{ teachers|length }} giáo viên</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="teachersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th width="60">#</th>
+                        <th>Giáo viên</th>
+                        <th>Mã GV</th>
+                        <th>Bộ môn</th>
+                        <th>Môn phụ trách</th>
+                        <th>Trạng thái</th>
+                        <th>Liên hệ</th>
+                        <th width="150" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr data-department="{{ teacher.department }}" data-status="{{ teacher.status }}">
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ teacher.avatar or url_for('static', filename='images/default-avatar.png') }}" 
+                                     alt="Avatar" class="teacher-avatar me-3">
+                                <div>
+                                    <h6 class="mb-0">{{ teacher.full_name }}</h6>
+                                    <small class="text-muted">{{ teacher.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="text-primary">{{ teacher.teacher_code }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ teacher.department_display }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex flex-wrap">
+                                {% for subject in teacher.assigned_subjects[:3] %}
+                                <span class="badge subject-badge bg-secondary">{{ subject.subject_name }}</span>
+                                {% endfor %}
+                                {% if teacher.subject_count > 3 %}
+                                <span class="badge subject-badge bg-light text-dark">+{{ teacher.subject_count - 3 }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if teacher.status == 'active' %}
+                                <span class="status-dot online"></span>
+                                <span class="text-success">Đang làm việc</span>
+                            {% elif teacher.status == 'busy' %}
+                                <span class="status-dot busy"></span>
+                                <span class="text-warning">Bận</span>
+                            {% else %}
+                                <span class="status-dot offline"></span>
+                                <span class="text-secondary">Nghỉ việc</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                <i class="fas fa-phone me-1"></i>{{ teacher.phone or 'N/A' }}
+                            </small>
+                        </td>
+                        <td class="text-center action-buttons">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary"
+                                        data-bs-toggle="tooltip"
+                                        title="Xem chi tiết"
+                                        onclick="viewTeacher({{ teacher.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-warning"
+                                        data-bs-toggle="tooltip"
+                                        title="Chỉnh sửa"
+                                        onclick="editTeacher({{ teacher.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-info"
+                                        data-bs-toggle="tooltip"
+                                        title="Phân công môn"
+                                        onclick="assignSubjects({{ teacher.id }})">
+                                    <i class="fas fa-tasks"></i>
+                                </button>
+                                {% if teacher.id != current_user.id %}
+                                <button class="btn btn-outline-danger"
+                                        data-bs-toggle="tooltip"
+                                        title="Xóa GV"
+                                        onclick="deleteTeacher({{ teacher.id }}, '{{ teacher.full_name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">Previous</a>
+                </li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item">
+                    <a class="page-link" href="#">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+<!-- Assign Subjects Modal -->
+<div class="modal fade" id="assignSubjectsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-tasks me-2"></i>Phân công Môn học
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="assignSubjectsForm">
+                <div class="modal-body">
+                    <input type="hidden" id="assignTeacherId" name="teacher_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Giáo viên</label>
+                        <input type="text" class="form-control" id="assignTeacherName" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Bộ môn hiện tại</label>
+                        <input type="text" class="form-control" id="assignTeacherDepartment" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Chọn môn học phụ trách <span class="text-danger">*</span></label>
+                        <div class="border rounded p-3 bg-light">
+                            <div class="row">
+                                {% for subject in all_subjects %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input subject-checkbox" 
+                                               type="checkbox" 
+                                               name="subjects" 
+                                               value="{{ subject.id }}" 
+                                               id="assign_subject{{ subject.id }}"
+                                               data-department="{{ subject.department }}">
+                                        <label class="form-check-label" for="assign_subject{{ subject.id }}">
+                                            {{ subject.subject_name }}
+                                            <small class="text-muted">({{ subject.department_name }})</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <small class="text-muted">Chọn các môn học mà giáo viên này sẽ phụ trách giảng dạy</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-save me-2"></i>Lưu phân công
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// THÊM VÀO manage_teachers.html
+async function validateTeacherSubjectAssignment(teacherId, subjectIds) {
+    try {
+        const response = await fetch(`/api/teacher/${teacherId}/validate-subjects`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ subject_ids: subjectIds })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Validation error:', error);
+        return { valid: false, message: 'Lỗi kết nối' };
+    }
+}
+
+function exportTeachersPDF() {
+    // Hiển thị loading
+    const originalText = event.target.innerHTML;
+    event.target.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang tạo PDF...';
+    event.target.disabled = true;
+    
+    // Lấy các bộ lọc hiện tại
+    const searchText = document.getElementById('searchInput').value;
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    // Tạo URL với các tham số bộ lọc
+    let url = `/admin/teachers/export-pdf?`;
+    const params = new URLSearchParams();
+    
+    if (searchText) params.append('search', searchText);
+    if (departmentFilter) params.append('department', departmentFilter);
+    if (statusFilter) params.append('status', statusFilter);
+    
+    url += params.toString();
+    
+    // Mở trong tab mới để tải file PDF
+    window.open(url, '_blank');
+    
+    // Khôi phục trạng thái nút
+    setTimeout(() => {
+        event.target.innerHTML = originalText;
+        event.target.disabled = false;
+    }, 2000);
+}
+
+
+function normalizeText(text) {
+    if (!text) return '';
+    text = text.toLowerCase();
+    
+    // Loại bỏ dấu Tiếng Việt
+    text = text.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    text = text.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    text = text.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    text = text.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    text = text.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    text = text.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    text = text.replace(/đ/g, "d");
+    text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    text = text.replace(/đ/g, 'd').replace(/Đ/g, 'D');
+
+    
+    // CHỈ trim() chứ KHÔNG xóa khoảng trắng giữa các từ
+    return text.trim();
+}
+
+
+function filterTeachers() {
+    const searchText = normalizeText(document.getElementById('searchInput').value);
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('#teachersTable tbody tr');
+    
+    rows.forEach(row => {
+        const name = normalizeText(row.cells[1].textContent);
+        const teacherCode = normalizeText(row.cells[2].textContent);
+        const department = row.dataset.department; // Lấy từ data attribute (giá trị viết tắt)
+        const status = row.dataset.status; // Lấy từ data attribute (giá trị viết tắt)
+        
+        const matchesSearch = name.includes(searchText) || teacherCode.includes(searchText);
+        
+        // So sánh trực tiếp với giá trị viết tắt từ data attribute
+        const matchesDepartment = !departmentFilter || department === departmentFilter;
+        
+        // So sánh trực tiếp với giá trị viết tắt từ data attribute
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        row.style.display = (matchesSearch && matchesDepartment && matchesStatus) ? '' : 'none';
+    });
+}
+
+// Các hàm khác giữ nguyên...
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('departmentFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterTeachers();
+}
+
+function viewTeacher(teacherId) {
+    alert('Xem chi tiết giáo viên: ' + teacherId + ' (Chưa implement)');
+}
+
+function editTeacher(teacherId) {
+    alert('Chỉnh sửa giáo viên: ' + teacherId + ' (Chưa implement)');
+}
+
+function assignSubjects(teacherId) {
+    console.log('Teacher ID:', teacherId);
+    
+    const teacherRow = document.querySelector(`tr[data-department] button[onclick*="assignSubjects(${teacherId})"]`)?.closest('tr');
+    console.log('Teacher row found:', teacherRow);
+    
+    if (teacherRow) {
+        const teacherName = teacherRow.cells[1].querySelector('h6').textContent;
+        const teacherDepartment = teacherRow.cells[3].textContent.trim();
+        const teacherCode = teacherRow.cells[2].textContent.trim();
+        
+        console.log('Teacher info:', { teacherName, teacherDepartment, teacherCode });
+        
+        // Điền thông tin vào form
+        document.getElementById('assignTeacherId').value = teacherId;
+        document.getElementById('assignTeacherName').value = `${teacherName} (${teacherCode})`;
+        document.getElementById('assignTeacherDepartment').value = teacherDepartment;
+        
+        // Kiểm tra số lượng môn học
+        const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+        console.log('Total subjects found:', subjectCheckboxes.length);
+        
+        // Reset và auto-check
+        subjectCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        const department = teacherRow.dataset.department;
+        console.log('Teacher department (data attribute):', department);
+        
+        autoCheckSameDepartmentSubjects(department);
+        
+        // Hiển thị modal
+        const modal = new bootstrap.Modal(document.getElementById('assignSubjectsModal'));
+        modal.show();
+    } else {
+        alert('Không tìm thấy thông tin giáo viên');
+    }
+}
+
+// Tự động check các môn cùng bộ môn
+function autoCheckSameDepartmentSubjects(department) {
+    document.querySelectorAll('.subject-checkbox').forEach(checkbox => {
+        if (checkbox.dataset.department === department) {
+            checkbox.checked = true;
+        }
+    });
+}
+
+// Xử lý submit form phân công môn học
+// Xử lý submit form phân công môn học
+document.getElementById('assignSubjectsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const teacherId = document.getElementById('assignTeacherId').value;
+    const selectedSubjects = Array.from(document.querySelectorAll('.subject-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+    
+    // Lấy CSRF token từ meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+    
+    // Hiển thị loading
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+    submitBtn.disabled = true;
+    
+    // Gửi request đến server
+    fetch(`/api/teacher/${teacherId}/assign-subjects`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            subjects: selectedSubjects
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
+            showFlashMessage('Phân công môn học thành công!', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('assignSubjectsModal'));
+            modal.hide();
+            
+            // Reload page sau 1.5 giây
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showFlashMessage(result.message || 'Lỗi khi phân công môn học', 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showFlashMessage('Lỗi kết nối. Vui lòng thử lại.', 'error');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+function showFlashMessage(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas ${icon} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function deleteTeacher(teacherId, teacherName) {
+    if (confirm(`Bạn có chắc muốn xóa giáo viên "${teacherName}"?`)) {
+        alert('Đang thực hiện xóa giáo viên: ' + teacherId + ' (Chưa implement)');
+    }
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', filterTeachers);
+document.getElementById('departmentFilter').addEventListener('change', filterTeachers);
+document.getElementById('statusFilter').addEventListener('change', filterTeachers);
+
+// Initialize tooltips
+const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
+{% endblock %}

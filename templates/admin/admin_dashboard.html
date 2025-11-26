@@ -1,0 +1,461 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin Dashboard - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 15px;
+        border: none;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .quick-action-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1) !important;
+    }
+    
+    .recent-activity-item {
+        border-left: 3px solid;
+        padding-left: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    /* Thêm style cho card đồng bộ */
+    .sync-card {
+        border-left: 4px solid #ffc107;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+    </h1>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-download me-2"></i>Export Reports
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>PDF Report</a></li>
+            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Excel Report</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#"><i class="fas fa-chart-bar me-2"></i>Statistics</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- THÊM: Card Đồng bộ Hệ thống -->
+<div class="card mb-4 sync-card">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-sync me-2"></i>Đồng bộ Hệ thống
+        </h5>
+        <span class="badge bg-dark">QUAN TRỌNG</span>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <p class="card-text mb-2">
+                    <strong>Đồng bộ tất cả dữ liệu thống kê, GPA và số lượng đăng ký.</strong>
+                </p>
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Bao gồm: GPA sinh viên, số lượng đăng ký khóa học, thống kê điểm số
+                </small>
+            </div>
+            <div class="col-md-4 text-end">
+                <form method="POST" action="{{ url_for('sync_system') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning btn-lg">
+                        <i class="fas fa-sync me-2"></i>Chạy Đồng bộ Ngay
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Tổng Sinh Viên
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_students }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>4.3%
+                            </span>
+                            <span>So với tháng trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-primary text-white">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Tổng Giáo Viên
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_teachers }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>2.1%
+                            </span>
+                            <span>So với tháng trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-success text-white">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Lớp Học
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_classes }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>3.7%
+                            </span>
+                            <span>So với tháng trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-info text-white">
+                            <i class="fas fa-school"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Môn Học
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_subjects }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>1.8%
+                            </span>
+                            <span>So với tháng trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-warning text-white">
+                            <i class="fas fa-book"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Actions -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bolt me-2"></i>Thao Tác Nhanh
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-primary text-white text-center p-3" 
+                             onclick="window.location.href='{{ url_for('manage_users') }}'">
+                            <i class="fas fa-user-plus fa-2x mb-2"></i>
+                            <h6 class="mb-0">Thêm User</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-success text-white text-center p-3"
+                             onclick="window.location.href='{{ url_for('manage_students') }}'">
+                            <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                            <h6 class="mb-0">Quản lý SV</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-info text-white text-center p-3"
+                             onclick="window.location.href='{{ url_for('manage_teachers') }}'">
+                            <i class="fas fa-chalkboard-teacher fa-2x mb-2"></i>
+                            <h6 class="mb-0">Quản lý GV</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-info text-white text-center p-3"
+                             onclick="window.location.href='{{ url_for('manage_classes') }}'">
+                            <i class="fas fa-school fa-2x mb-2"></i>
+                            <h6 class="mb-0">Quản lý Lớp</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-info text-white text-center p-3"
+                             onclick="window.location.href='{{ url_for('manage_subjects') }}'">
+                            <i class="fas fa-book fa-2x mb-2"></i>
+                            <h6 class="mb-0">Quản lý Môn</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-info text-white text-center p-3"
+                            onclick="window.location.href='{{ url_for('manage_courses') }}'">
+                           <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                           <h6 class="mb-0">Quản lý Khóa Học</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-info text-white text-center p-3"
+                            onclick="window.location.href='{{ url_for('manage_courses_register') }}'">
+                           <i class="fas fa-clipboard-list fa-2x mb-2"></i>
+                           <h6 class="mb-0">Quản lý Đăng Ký</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-warning text-white text-center p-3"
+                            onclick="window.location.href='{{ url_for('reports') }}'">
+                            <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                            <h6 class="mb-0">Báo Cáo</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-history me-2"></i>Hoạt Động Gần Đây
+                </h5>
+                <a href="#" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% for activity in recent_activities %}
+                    <div class="recent-activity-item border-{{ activity.type }}">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-1">{{ activity.title }}</h6>
+                            <small class="text-muted">{{ activity.time }}</small>
+                        </div>
+                        <p class="mb-1 text-muted">{{ activity.description }}</p>
+                        <small class="text-{{ activity.type }}">
+                            <i class="fas fa-{{ activity.icon }} me-1"></i>{{ activity.user }}
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Statistics -->
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-line me-2"></i>Thống Kê Điểm Số
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="scoreChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>Phân Bố Sinh Viên
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="studentDistributionChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-server me-2"></i>Trạng Thái Hệ Thống
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-database fa-2x text-primary mb-2"></i>
+                            <h6>Database</h6>
+                            <span class="badge bg-success">Online</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-envelope fa-2x text-info mb-2"></i>
+                            <h6>Email Service</h6>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-file-export fa-2x text-warning mb-2"></i>
+                            <h6>Export Service</h6>
+                            <span class="badge bg-success">Ready</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-bell fa-2x text-danger mb-2"></i>
+                            <h6>Notifications</h6>
+                            <span class="badge bg-success">Enabled</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Score Statistics Chart
+    const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+    const scoreChart = new Chart(scoreCtx, {
+        type: 'line',
+        data: {
+            labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+            datasets: [{
+                label: 'Điểm trung bình',
+                data: [7.2, 7.5, 7.8, 8.1, 7.9, 8.2, 8.0, 8.3, 8.1, 8.4, 8.2, 8.5],
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Điểm trung bình theo tháng'
+                }
+            }
+        }
+    });
+
+    // Student Distribution Chart
+    const distCtx = document.getElementById('studentDistributionChart').getContext('2d');
+    const distChart = new Chart(distCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Năm 1', 'Năm 2', 'Năm 3', 'Năm 4'],
+            datasets: [{
+                data: [35, 30, 20, 15],
+                backgroundColor: [
+                    '#0d6efd',
+                    '#198754',
+                    '#ffc107',
+                    '#dc3545'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

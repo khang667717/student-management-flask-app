@@ -1,0 +1,570 @@
+{% extends "layout.html" %}
+
+{% block title %}Hồ Sơ Sinh Viên - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px 0;
+        margin-bottom: 30px;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .profile-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .profile-card:hover {
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .info-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .stat-badge {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+    
+    .edit-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+    }
+    
+    .tab-content {
+        min-height: 300px;
+    }
+    
+    .academic-badge {
+        font-size: 0.75rem;
+        margin: 2px;
+    }
+    
+    .skill-meter {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 5px 0;
+    }
+    
+    .skill-progress {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Profile Header -->
+<div class="profile-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-2 text-center">
+                <img src="{{ student.avatar or url_for('static', filename='images/default-avatar.png') }}" 
+                     alt="Avatar" class="profile-avatar">
+            </div>
+            <div class="col-md-7">
+                <h2 class="mb-1">{{ student.full_name }}</h2>
+                <p class="mb-2 opacity-75">
+                    <i class="fas fa-user-graduate me-2"></i>{{ student.student_id }} • {{ student.class_name }}
+                </p>
+                <p class="mb-0 opacity-75">
+                    <i class="fas fa-envelope me-2"></i>{{ student.email }} • 
+                    <i class="fas fa-phone me-2"></i>{{ student.phone or 'Chưa cập nhật' }}
+                </p>
+            </div>
+            <div class="col-md-3 text-end">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="h3 mb-0">{{ "%.2f"|format(student.gpa) }}</div>
+                        <small class="opacity-75">GPA</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h3 mb-0">{{ student.completed_credits }}</div>
+                        <small class="opacity-75">Tín chỉ</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h3 mb-0">{{ student.current_courses }}</div>
+                        <small class="opacity-75">Môn học</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <!-- Personal Information Card -->
+            <div class="card profile-card shadow position-relative">
+                <button class="btn btn-sm btn-outline-primary edit-btn" onclick="editProfile()">
+                    <i class="fas fa-edit me-1"></i>Chỉnh sửa
+                </button>
+                <div class="card-body">
+                    <h5 class="card-title text-primary mb-4">
+                        <i class="fas fa-user me-2"></i>Thông Tin Cá Nhân
+                    </h5>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Mã sinh viên</small>
+                        <strong>{{ student.student_id }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Họ và tên</small>
+                        <strong>{{ student.full_name }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Ngày sinh</small>
+                        <strong>{{ student.birth_date or 'Chưa cập nhật' }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Giới tính</small>
+                        <strong>{{ student.gender or 'Chưa cập nhật' }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Số điện thoại</small>
+                        <strong>{{ student.phone or 'Chưa cập nhật' }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Email</small>
+                        <strong>{{ student.email }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Địa chỉ</small>
+                        <strong>{{ student.address or 'Chưa cập nhật' }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academic Summary -->
+            <div class="card profile-card shadow mt-4">
+                <div class="card-body">
+                    <h5 class="card-title text-primary mb-4">
+                        <i class="fas fa-graduation-cap me-2"></i>Tóm Tắt Học Tập
+                    </h5>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Lớp</small>
+                        <strong>{{ student.classes[0].class_name if student.classes else 'Chưa phân lớp' }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Khóa học</small>
+                        <strong>K{{ student.course }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Khoa/Viện</small>
+                        <strong>{{ student.classes[0].faculty if student.classes and student.classes[0].faculty else 'Chưa cập nhật' }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Ngành học</small>
+                        <strong>{{ student.major }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Bậc đào tạo</small>
+                        <strong>{{ student.education_level }}</strong>
+                    </div>
+                    
+                    <div class="info-item">
+                        <small class="text-muted d-block">Hình thức đào tạo</small>
+                        <strong>{{ student.training_type }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8 mb-4">
+            <!-- Navigation Tabs -->
+            <div class="card profile-card shadow">
+                <div class="card-header bg-white">
+                    <ul class="nav nav-pills nav-fill" id="profileTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button">
+                                <i class="fas fa-chart-bar me-2"></i>Kết Quả Học Tập
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button">
+                                <i class="fas fa-book me-2"></i>Môn Học
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="skills-tab" data-bs-toggle="tab" data-bs-target="#skills" type="button">
+                                <i class="fas fa-star me-2"></i>Kỹ Năng
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button">
+                                <i class="fas fa-file-alt me-2"></i>Tài Liệu
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body">
+                    <div class="tab-content" id="profileTabsContent">
+                        <!-- Academic Performance Tab -->
+                        <div class="tab-pane fade show active" id="academic" role="tabpanel">
+                            <div class="row mb-4">
+                                <div class="col-md-4 text-center">
+                                    <div class="border rounded p-3">
+                                        <div class="h2 text-primary mb-0">{{ "%.2f"|format(student.gpa) }}</div>
+                                        <small class="text-muted">GPA Hiện Tại</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="border rounded p-3">
+                                        <div class="h2 text-success mb-0">{{ student.completed_credits }}</div>
+                                        <small class="text-muted">Tín Chỉ Đã Hoàn Thành</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="border rounded p-3">
+                                        <div class="h2 text-info mb-0">{{ student.attendance_rate or 95 }}%</div>
+                                        <small class="text-muted">Tỷ Lệ Chuyên Cần</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h6 class="text-primary mb-3">Thống Kê Theo Học Kỳ</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Học Kỳ</th>
+                                            <th>Số TC</th>
+                                            <th>GPA</th>
+                                            <th>Tín Chí Tích Lũy</th>
+                                            <th>Xếp Loại</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for semester in academic_history %}
+                                        <tr>
+                                            <td>HK{{ semester.semester }} - {{ semester.year }}</td>
+                                            <td>{{ semester.credits }}</td>
+                                            <td>
+                                                <span class="badge stat-badge bg-{{ 
+                                                    'success' if semester.gpa >= 3.6 else 
+                                                    'warning' if semester.gpa >= 2.5 else 
+                                                    'danger' 
+                                                }}">
+                                                    {{ "%.2f"|format(semester.gpa) }}
+                                                </span>
+                                            </td>
+                                            <td>{{ semester.accumulated_credits }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ 
+                                                    'success' if semester.ranking == 'Xuất sắc' else 
+                                                    'info' if semester.ranking == 'Giỏi' else 
+                                                    'warning' if semester.ranking == 'Khá' else 
+                                                    'secondary' 
+                                                }}">
+                                                    {{ semester.ranking }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Courses Tab -->
+                        <div class="tab-pane fade" id="courses" role="tabpanel">
+                            <h6 class="text-primary mb-3">Môn Học Đang Học</h6>
+                            {% for course in current_courses %}
+                            <div class="card border-0 bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">{{ course['course_name'] }}</h6>
+                                            <p class="mb-1 text-muted">{{ course['teacher'] }} • {{ course['credits'] }} tín chỉ</p>
+                                            <small class="text-muted">{{ course.schedule }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-{{ 
+                                                'success' if course['score'] is not none and course['score'] >= 8.0 else 
+                                                'info' if course['score'] is not none and course['score'] >= 6.5 else 
+                                                'warning' if course['score'] is not none and course['score'] >= 5.0 else 
+                                                'secondary' }}">
+                                                {{ "%.1f"|format(course['score']) if course['score'] is not none else 'Đang học' }}
+                                            </span>
+                                            <br>
+                                            <small class="text-muted">{{ course['score'] * 10 if course['score'] else 0 }}% hoàn thành</small>
+                                        </div>
+                                    </div>
+                                    <div class="progress mt-2" style="height: 4px;">
+                                        <div class="progress-bar bg-{{ 
+                                            'success' if course['score'] is not none and course['score'] >= 8.0 else  
+                                            'warning' if course['score'] is not none and course['score'] >= 5.0 else  
+                                            'info' }}" 
+                                                style="width: {{ course['progress'] }}%"> 
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <h6 class="text-primary mb-3 mt-4">Môn Học Đã Hoàn Thành</h6>
+                            <div class="row">
+                                {% for course in completed_courses %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                                        <span>{{ course.course_name }}</span>
+                                        <span class="badge academic-badge bg-{{ 
+                                            'success' if course['final_score'] >= 8.0 else
+                                            'info' if course['final_score'] >= 6.5 else  
+                                            'warning' if course['final_score'] >= 5.0 else
+                                            'danger' 
+                                        }}">
+                                            {{ "%.1f"|format(course['final_score']) if course['final_score'] is not none else 'N/A' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Skills Tab -->
+                        <div class="tab-pane fade" id="skills" role="tabpanel">
+                            <h6 class="text-primary mb-3">Kỹ Năng Chuyên Môn</h6>
+                            {% for skill in skills %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span>{{ skill.name }}</span>
+                                    <small class="text-muted">{{ skill.level }}%</small>
+                                </div>
+                                <div class="skill-meter">
+                                    <div class="skill-progress bg-{{ 
+                                        'success' if skill.level >= 80 else 
+                                        'info' if skill.level >= 60 else 
+                                        'warning' if skill.level >= 40 else 
+                                        'danger' 
+                                    }}" style="width: {{ skill.level }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                            <h6 class="text-primary mb-3 mt-4">Chứng Chỉ & Giải Thưởng</h6>
+                            {% for certificate in certificates %}
+                            <div class="card border-0 bg-light mb-2">
+                                <div class="card-body py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0">{{ certificate.name }}</h6>
+                                            <small class="text-muted">{{ certificate.organization }} • {{ certificate.date }}</small>
+                                        </div>
+                                        <span class="badge bg-success">Đã đạt</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Documents Tab -->
+                        <div class="tab-pane fade" id="documents" role="tabpanel">
+                            <h6 class="text-primary mb-3">Tài Liệu Cá Nhân</h6>
+                            <div class="row">
+                                {% for document in documents %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border-0 h-100">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-{{ document.icon }} fa-3x text-{{ document.color }} mb-3"></i>
+                                            <h6>{{ document.name }}</h6>
+                                            <p class="text-muted small mb-2">{{ document.description }}</p>
+                                            <button class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-download me-1"></i>Tải xuống
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="mt-4">
+                                <h6 class="text-primary mb-3">Upload Tài Liệu Mới</h6>
+                                <div class="border rounded p-3">
+                                    <div class="mb-3">
+                                        <label class="form-label">Loại tài liệu</label>
+                                        <select class="form-select">
+                                            <option>Bảng điểm</option>
+                                            <option>Giấy chứng nhận</option>
+                                            <option>Ảnh thẻ</option>
+                                            <option>Khác</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Chọn file</label>
+                                        <input type="file" class="form-control">
+                                    </div>
+                                    <button class="btn btn-primary">
+                                        <i class="fas fa-upload me-2"></i>Upload
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Chỉnh Sửa Hồ Sơ
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="profileForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Họ và tên</label>
+                                <input type="text" class="form-control" name="full_name" value="{{ student.full_name }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ngày sinh</label>
+                                <input type="date" class="form-control" name="birth_date" value="{{ student.birth_date if student.birth_date != 'Chưa cập nhật' else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Giới tính</label>
+                                <select class="form-select" name="gender">
+                                    <option value="">Chọn giới tính</option>
+                                    <option value="Nam" {{ 'selected' if student.gender == 'Nam' }}>Nam</option>
+                                    <option value="Nữ" {{ 'selected' if student.gender == 'Nữ' }}>Nữ</option>
+                                    <option value="Khác" {{ 'selected' if student.gender == 'khác' }}>Khác</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Số điện thoại</label>
+                                <input type="tel" class="form-control" name="phone" value="{{ student.phone if student.phone != 'Chưa cập nhật' else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" value="{{ student.email }}" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Địa chỉ</label>
+                                <textarea class="form-control" name="address" rows="3">{{ student.address if student.address != 'Chưa cập nhật' else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="saveProfile()">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editProfile() {
+    const modal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+    modal.show();
+}
+
+function saveProfile() {
+    // Lấy giá trị từ form - SỬA SELECTOR
+    const data = {
+        full_name: document.querySelector('#editProfileModal input[name="full_name"]').value,
+        birth_date: document.querySelector('#editProfileModal input[name="birth_date"]').value,
+        gender: document.querySelector('#editProfileModal select[name="gender"]').value,
+        phone: document.querySelector('#editProfileModal input[name="phone"]').value,
+        address: document.querySelector('#editProfileModal textarea[name="address"]').value
+    };
+    
+    console.log('Data to send:', data); // Debug
+    
+    // Gửi AJAX request
+    fetch('/student/profile/update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showToast(result.message, 'success');
+            // Reload trang để hiển thị dữ liệu mới
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Lỗi kết nối', 'error');
+    });
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+// Initialize any profile-specific functionality
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Student profile loaded');
+});
+</script>
+{% endblock %}

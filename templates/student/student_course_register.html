@@ -1,0 +1,862 @@
+
+{% extends "layout.html" %}
+
+{% block title %}Đăng Ký Học Phần - Student{% endblock %}
+
+{% block extra_css %}
+<style>
+    .registration-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .registration-card:hover {
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .course-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .course-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .course-selected {
+        border: 2px solid #198754;
+        background-color: #f0fff4;
+    }
+    
+    .course-conflict {
+        border: 2px solid #dc3545;
+        background-color: #fff5f5;
+    }
+    
+    .course-full {
+        border: 2px solid #ffc107;
+        background-color: #fffbf0;
+    }
+    
+    .registration-phase {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .credit-counter {
+        background-color: white;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .schedule-preview {
+        border-left: 4px solid #0d6efd;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    .time-slot-preview {
+        background-color: #e3f2fd;
+        border-radius: 5px;
+        padding: 5px 10px;
+        margin: 2px;
+        font-size: 0.8rem;
+    }
+    
+    .prerequisite-alert {
+        border-left: 4px solid #ffc107;
+        background-color: #fffbf0;
+    }
+    
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .cart-item {
+        border-left: 4px solid #198754;
+        background-color: white;
+        border-radius: 8px;
+        padding: 10px 15px;
+        margin-bottom: 10px;
+    }
+    
+    .conflict-warning {
+        border-left: 4px solid #dc3545;
+        background-color: #fff5f5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-clipboard-list me-2"></i>Đăng Ký Học Phần
+    </h1>
+    <div>
+        <button class="btn btn-success me-2" onclick="submitRegistration()">
+            <i class="fas fa-paper-plane me-2"></i>Gửi Đăng Ký
+        </button>
+        <button class="btn btn-primary" onclick="saveDraft()">
+            <i class="fas fa-save me-2"></i>Lưu Nháp
+        </button>
+    </div>
+</div>
+
+<!-- Registration Phase Info -->
+<div class="registration-phase">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h4 class="mb-2">Đợt Đăng Ký Học Phần Học Kỳ {{ current_semester.semester }} - {{ current_semester.year }}</h4>
+            <p class="mb-0">
+                <i class="fas fa-clock me-2"></i>
+                Thời gian: {{ current_semester.start_date }} đến {{ current_semester.end_date }}
+                • <i class="fas fa-info-circle me-2"></i>Trạng thái: <span class="badge bg-success">{{ current_semester.status }}</span>
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="credit-counter">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h4 text-primary mb-0" id="currentCredits">0</div>
+                        <small class="text-muted">Đã chọn</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 text-success mb-0">{{ max_credits }}</div>
+                        <small class="text-muted">Tối đa</small>
+                    </div>
+                </div>
+                <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar bg-success" id="creditProgress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Registration Cart -->
+<div class="card registration-card shadow mb-4">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-shopping-cart me-2"></i>Giỏ Hàng Đăng Ký
+            <span class="badge bg-primary ms-2" id="cartCount">0</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div id="registrationCart">
+            <div class="text-center py-4" id="emptyCartMessage">
+                <i class="fas fa-cart-arrow-down fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">Chưa có môn học nào trong giỏ hàng</p>
+            </div>
+        </div>
+        
+        <div id="cartSummary" style="display: none;">
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="schedule-preview">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-calendar-alt me-2"></i>Xem Trước Thời Khóa Biểu
+                        </h6>
+                        <div id="schedulePreview">
+                            <!-- Schedule preview will be generated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Thông Tin Đăng Ký</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <small>Tổng số môn:</small>
+                                <br>
+                                <strong id="summaryTotalCourses">0</strong>
+                            </div>
+                            <div class="col-6">
+                                <small>Tổng tín chỉ:</small>
+                                <br>
+                                <strong id="summaryTotalCredits">0</strong>
+                            </div>
+                        </div>
+                        <hr>
+                        <small class="text-muted">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Vui lòng kiểm tra kỹ trước khi gửi đăng ký
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <label class="form-label">Tìm kiếm môn học</label>
+                    <input type="text" class="form-control" placeholder="Tên môn, mã môn..." id="courseSearch">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Loại môn</label>
+                    <select class="form-select" id="courseTypeFilter">
+                        <option value="">Tất cả</option>
+                        <option value="general">Đại cương</option>
+                        <option value="major">Chuyên ngành</option>
+                        <option value="elective">Tự chọn</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Học kỳ khuyến nghị</label>
+                    <select class="form-select" id="semesterFilter">
+                        <option value="">Tất cả</option>
+                        <option value="1">Học kỳ 1</option>
+                        <option value="2">Học kỳ 2</option>
+                        <option value="3">Học kỳ 3</option>
+                        <option value="4">Học kỳ 4</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                        <i class="fas fa-redo me-2"></i>Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Courses -->
+        <div class="card registration-card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-book me-2"></i>Môn Học Có Thể Đăng Ký
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="coursesGrid">
+                    {% for course in available_courses %}
+                    <div class="col-md-6 mb-3 course-item"
+                         data-type="{{ course.type }}"
+                         data-semester="{{ course.recommended_semester }}"
+                         data-credits="{{ course.credits }}">
+                        <div class="course-card border p-3 h-100 {{ 'course-full' if course.available_slots == 0 else 'course-conflict' if course.has_conflict else '' }}"
+                             onclick="toggleCourseSelection('{{ course.id }}')">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="text-primary mb-0">{{ course.course_code }}</h6>
+                                <span class="badge bg-{{ 
+                                    'success' if course.type == 'major' else 
+                                    'info' if course.type == 'general' else 
+                                    'warning' 
+                                }}">
+                                    {{ 
+                                        'Chuyên ngành' if course.type == 'major' else 
+                                        'Đại cương' if course.type == 'general' else 
+                                        'Tự chọn' 
+                                    }}
+                                </span>
+                            </div>
+                            
+                            <h6 class="mb-2">{{ course.course_name }}</h6>
+                            <p class="text-muted small mb-2">{{ course.teacher }}</p>
+                            
+                            <div class="mb-2">
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-credit-card me-1"></i>{{ course.credits }} tín chỉ
+                                    <i class="fas fa-users me-1"></i>
+                                    {{ course.current_students }}/{{ course.max_students }} SV
+                                    • {{ course.available_slots }} chỗ trống
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-calendar me-1"></i>{{ course.schedule or 'Chưa có lịch' }}
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-map-marker-alt me-1"></i>{{ course.room or 'Chưa có phòng' }}
+                                </small>
+                            </div>
+
+                            
+                            {% if course.prerequisites %}
+                            <div class="prerequisite-alert p-2 mb-2">
+                                <small class="text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Môn học trước: {{ course.prerequisites|join(', ') }}
+                                </small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-{{ 
+                                'success' if (course.max_students - course.current_students) > 10 else 
+                                'warning' if (course.max_students - course.current_students) > 0 else 
+                                'danger' 
+                            }}">
+                               {{ 'Còn ' + (course.max_students - course.current_students)|string + ' chỗ' if (course.max_students - course.current_students) > 0 else 
+                               'Đã hết chỗ' 
+                               }}
+                                </small>
+                                <button class="btn btn-sm btn-{{ 
+                                    'success' if course.is_selected else 
+                                    'outline-primary' if course.available_slots > 0 else 
+                                    'secondary' 
+                                }}" 
+                                onclick="event.stopPropagation(); toggleCourseSelection('{{ course.id }}')"
+                                {{ 'disabled' if course.available_slots == 0 }}>
+                                    <i class="fas fa-{{ 'check' if course.is_selected else 'plus' }} me-1"></i>
+                                    {{ 'Đã chọn' if course.is_selected else 'Chọn' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if not available_courses %}
+                <div class="text-center py-4">
+                    <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Không có môn học nào để đăng ký</h5>
+                    <p class="text-muted">Vui lòng kiểm tra lại thời gian đăng ký hoặc liên hệ phòng đào tạo.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <!-- Registration Guidelines -->
+        <div class="card registration-card shadow mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-info-circle me-2"></i>Hướng Dẫn Đăng Ký
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Lưu ý quan trọng</h6>
+                    <ul class="small mb-0">
+                        <li>Tối đa {{ max_credits }} tín chỉ/học kỳ</li>
+                        <li>Kiểm tra môn học trước khi đăng ký</li>
+                        <li>Tránh trùng lịch học giữa các môn</li>
+                        <li>Đăng ký sớm để tránh hết chỗ</li>
+                    </ul>
+                </div>
+                
+                <h6 class="text-primary mt-3">Trạng thái đăng ký:</h6>
+                <div class="progress mb-2" style="height: 8px;">
+                    <div class="progress-bar bg-success" style="width: {{ registration_progress }}%"></div>
+                </div>
+                <small class="text-muted">{{ registration_progress }}% sinh viên đã đăng ký</small>
+                
+                <hr>
+                
+                <h6 class="text-primary">Thống kê đăng ký:</h6>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="h6 mb-0 text-primary">{{ stats.total_courses }}</div>
+                        <small class="text-muted">Môn học</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h6 mb-0 text-success">{{ stats.available_slots }}</div>
+                        <small class="text-muted">Chỗ trống</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h6 mb-0 text-warning">{{ stats.registered_students }}</div>
+                        <small class="text-muted">SV đã ĐK</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prerequisite Check -->
+        <div class="card registration-card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-tasks me-2"></i>Kiểm Tra Điều Kiện
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-success">
+                        <i class="fas fa-check-circle me-2"></i>Đã hoàn thành
+                    </h6>
+                    <div class="d-flex flex-wrap">
+                        {% for course in completed_prerequisites %}
+                        <span class="badge bg-success me-1 mb-1">{{ course }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-warning">
+                        <i class="fas fa-clock me-2"></i>Đang học
+                    </h6>
+                    <div class="d-flex flex-wrap">
+                        {% for course in current_prerequisites %}
+                        <span class="badge bg-warning me-1 mb-1">{{ course }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div>
+                    <h6 class="text-danger">
+                        <i class="fas fa-times-circle me-2"></i>Chưa hoàn thành
+                    </h6>
+                    <div class="d-flex flex-wrap">
+                        {% for course in missing_prerequisites %}
+                        <span class="badge bg-danger me-1 mb-1">{{ course }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Registration Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-paper-plane me-2"></i>Xác Nhận Đăng Ký
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có chắc muốn gửi đăng ký học phần cho học kỳ {{ current_semester.semester }}?</p>
+                <div class="alert alert-info">
+                    <h6>Thông tin đăng ký:</h6>
+                    <ul class="mb-0" id="confirmationList">
+                        <!-- Course list will be populated here -->
+                    </ul>
+                </div>
+                <p class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Sau khi gửi, bạn có thể chỉnh sửa trong thời gian đăng ký.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="confirmRegistration()">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// THAY THẾ TOÀN BỘ PHẦN extra_js trong student_course_register.html
+
+let selectedCourses = new Set();
+let currentCredits = 0;
+const maxCredits = {{ max_credits }};
+
+// Load dữ liệu khi trang được tải
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableCourses();
+    loadCart();
+    updateCreditCounter();
+});
+
+async function loadAvailableCourses() {
+    try {
+        const response = await fetch('/api/student/courses/available');
+        const result = await response.json();
+        
+        if (result.success) {
+            // Đảm bảo dữ liệu khớp với template
+            const coursesWithProperData = result.courses.map(course => {
+                // Tính toán các field cần thiết
+                const available_slots = course.max_students - course.current_students;
+                const has_conflict = course.has_conflict || false;
+                const is_selected = course.is_selected || false;
+                
+                // Đảm bảo các field quan trọng có giá trị
+                return {
+                    ...course,
+                    id: course.id,
+                    course_code: course.course_code || 'N/A',
+                    course_name: course.course_name || course.subject_name || 'N/A',
+                    teacher: course.teacher || 'Chưa phân công',
+                    credits: course.credits || 0,
+                    schedule: course.schedule || 'Chưa có lịch',
+                    room: course.room || 'Chưa có phòng',
+                    max_students: course.max_students || 50,
+                    current_students: course.current_students || 0,
+                    available_slots: available_slots,
+                    type: course.type || 'general',
+                    prerequisites: course.prerequisites || [],
+                    can_register: course.can_register !== false,
+                    missing_prerequisites: course.missing_prerequisites || [],
+                    has_conflict: has_conflict,
+                    is_selected: is_selected
+                };
+            });
+            
+            displayCourses(coursesWithProperData);
+        } else {
+            console.error('API Error:', result.message);
+            showToast('Lỗi khi tải danh sách môn học: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Lỗi kết nối khi tải môn học', 'error');
+    }
+}
+async function loadCart() {
+    try {
+        const response = await fetch('/api/student/cart');
+        const result = await response.json();
+        
+        if (result.success) {
+            updateCartDisplay(result.cart, result.total_credits);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function displayCourses(courses) {
+    const coursesGrid = document.getElementById('coursesGrid');
+    
+    if (!courses || courses.length === 0) {
+        coursesGrid.innerHTML = `
+            <div class="col-12 text-center py-4">
+                <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Không có môn học nào để đăng ký</h5>
+                <p class="text-muted">Vui lòng kiểm tra lại thời gian đăng ký hoặc liên hệ phòng đào tạo.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    courses.forEach(course => {
+        const isDisabled = !course.can_register || course.available_slots === 0;
+        const conflictClass = course.has_conflict ? 'course-conflict' : '';
+        const fullClass = course.available_slots === 0 ? 'course-full' : '';
+        const selectedClass = course.is_selected ? 'course-selected' : '';
+        
+        html += `
+            <div class="col-md-6 mb-3 course-item"
+                 data-type="${course.type}"
+                 data-semester="${course.recommended_semester || course.semester}"
+                 data-credits="${course.credits}">
+                <div class="course-card border p-3 h-100 ${conflictClass} ${fullClass} ${selectedClass}"
+                     onclick="toggleCourseSelection(${course.id})">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="text-primary mb-0">${course.course_code}</h6>
+                        <span class="badge bg-${ 
+                            course.type === 'major' ? 'success' : 
+                            course.type === 'general' ? 'info' : 'warning'
+                        }">
+                            ${ 
+                                course.type === 'major' ? 'Chuyên ngành' : 
+                                course.type === 'general' ? 'Đại cương' : 'Tự chọn'
+                            }
+                        </span>
+                    </div>
+                    
+                    <h6 class="mb-2">${course.course_name}</h6>
+                    <p class="text-muted small mb-2">${course.teacher}</p>
+                    
+                    <div class="mb-2">
+                        <small class="text-muted d-block">
+                            <i class="fas fa-credit-card me-1"></i>${course.credits} tín chỉ
+                            • <i class="fas fa-users me-1"></i>${course.current_students}/${course.max_students} SV
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="fas fa-calendar me-1"></i>${course.schedule}
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="fas fa-map-marker-alt me-1"></i>${course.room}
+                        </small>
+                    </div>
+                    
+                    ${course.prerequisites && course.prerequisites.length > 0 ? `
+                    <div class="prerequisite-alert p-2 mb-2">
+                        <small class="text-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Môn học trước: ${course.prerequisites.join(', ')}
+                        </small>
+                    </div>
+                    ` : ''}
+                    
+                    ${!course.can_register && course.missing_prerequisites && course.missing_prerequisites.length > 0 ? `
+                    <div class="alert alert-danger p-2 mb-2">
+                        <small>
+                            <i class="fas fa-times-circle me-1"></i>
+                            Thiếu điều kiện: ${course.missing_prerequisites.join(', ')}
+                        </small>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-${ 
+                            course.available_slots > 10 ? 'success' : 
+                            course.available_slots > 0 ? 'warning' : 'danger'
+                        }">
+                            ${course.available_slots > 0 ? 
+                                `Còn ${course.available_slots} chỗ` : 'Đã hết chỗ'
+                            }
+                        </small>
+                        <button class="btn btn-sm btn-${ 
+                            course.is_selected ? 'success' : 
+                            isDisabled ? 'secondary' : 'outline-primary'
+                        }" 
+                        onclick="event.stopPropagation(); toggleCourseSelection(${course.id})"
+                        ${isDisabled ? 'disabled' : ''}>
+                            <i class="fas fa-${course.is_selected ? 'check' : 'plus'} me-1"></i>
+                            ${course.is_selected ? 'Đã chọn' : 'Chọn'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    coursesGrid.innerHTML = html;
+}
+
+async function toggleCourseSelection(courseId) {
+    try {
+        if (selectedCourses.has(courseId)) {
+            // Remove from selection
+            const response = await fetch('/api/student/cart/remove', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ course_id: courseId })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                selectedCourses.delete(courseId);
+                updateCourseDisplay(courseId, false);
+                await loadCart(); // Reload cart
+            } else {
+                showToast(result.message, 'error');
+            }
+        } else {
+            // Add to selection
+            const response = await fetch('/api/student/cart/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ course_id: courseId })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                selectedCourses.add(courseId);
+                updateCourseDisplay(courseId, true);
+                await loadCart(); // Reload cart
+            } else {
+                showToast(result.message, 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Lỗi kết nối', 'error');
+    }
+}
+
+function updateCourseDisplay(courseId, isSelected) {
+    const courseElement = document.querySelector(`[onclick="toggleCourseSelection(${courseId})"]`);
+    if (!courseElement) return;
+    
+    const courseCard = courseElement.closest('.course-card');
+    const button = courseElement.querySelector('button');
+    
+    if (isSelected) {
+        courseCard.classList.add('course-selected');
+        button.innerHTML = '<i class="fas fa-check me-1"></i>Đã chọn';
+        button.className = 'btn btn-sm btn-success';
+    } else {
+        courseCard.classList.remove('course-selected');
+        button.innerHTML = '<i class="fas fa-plus me-1"></i>Chọn';
+        button.className = 'btn btn-sm btn-outline-primary';
+    }
+}
+
+function updateCartDisplay(cartItems, totalCredits) {
+    const cart = document.getElementById('registrationCart');
+    const emptyMessage = document.getElementById('emptyCartMessage');
+    const cartSummary = document.getElementById('cartSummary');
+    const cartCount = document.getElementById('cartCount');
+    
+    if (!cartItems || cartItems.length === 0) {
+        emptyMessage.style.display = 'block';
+        cartSummary.style.display = 'none';
+        cartCount.textContent = '0';
+        currentCredits = 0;
+        return;
+    }
+    
+    emptyMessage.style.display = 'none';
+    cartSummary.style.display = 'block';
+    cartCount.textContent = cartItems.length;
+    currentCredits = totalCredits;
+    
+    // Update cart items
+    let cartHTML = '';
+    cartItems.forEach(item => {
+        cartHTML += `
+            <div class="cart-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">${item.course_code} - ${item.course_name}</h6>
+                        <small class="text-muted">${item.credits} tín chỉ • ${item.schedule || 'Chưa có lịch'}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    cart.innerHTML = cartHTML;
+    
+    // Update summary
+    document.getElementById('summaryTotalCourses').textContent = cartItems.length;
+    document.getElementById('summaryTotalCredits').textContent = currentCredits;
+    
+    updateCreditCounter();
+}
+
+async function removeFromCart(courseId) {
+    await toggleCourseSelection(courseId);
+}
+
+function updateCreditCounter() {
+    document.getElementById('currentCredits').textContent = currentCredits;
+    
+    const progress = (currentCredits / maxCredits) * 100;
+    document.getElementById('creditProgress').style.width = progress + '%';
+    
+    if (currentCredits > maxCredits) {
+        document.getElementById('creditProgress').className = 'progress-bar bg-danger';
+    } else if (currentCredits === maxCredits) {
+        document.getElementById('creditProgress').className = 'progress-bar bg-warning';
+    } else {
+        document.getElementById('creditProgress').className = 'progress-bar bg-success';
+    }
+}
+
+async function submitRegistration() {
+    if (selectedCourses.size === 0) {
+        showToast('Vui lòng chọn ít nhất một môn học!', 'warning');
+        return;
+    }
+    
+    if (currentCredits < 12) {
+        if (!confirm(`Bạn chỉ đăng ký ${currentCredits} tín chỉ (tối thiểu 12). Bạn có muốn tiếp tục?`)) {
+            return;
+        }
+    }
+    
+    try {
+        const response = await fetch('/api/student/registration/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(result.message, 'success');
+            // Reset cart and reload
+            selectedCourses.clear();
+            await loadCart();
+            await loadAvailableCourses();
+        } else {
+            if (result.conflicts) {
+                // Hiển thị chi tiết xung đột
+                let conflictMessage = 'Có xung đột lịch học:\n';
+                result.conflicts.forEach(conflict => {
+                    conflictMessage += `- ${conflict.course1} và ${conflict.course2}\n`;
+                });
+                alert(conflictMessage);
+            }
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Lỗi kết nối', 'error');
+    }
+}
+
+// Các hàm utility giữ nguyên
+function getCSRFToken() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    return csrfToken ? csrfToken.getAttribute('content') : '';
+}
+
+function showToast(message, type = 'info') {
+    // Implementation giữ nguyên
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Các hàm filter giữ nguyên
+function resetFilters() {
+    document.getElementById('courseSearch').value = '';
+    document.getElementById('courseTypeFilter').value = '';
+    document.getElementById('semesterFilter').value = '';
+    filterCourses();
+}
+
+function filterCourses() {
+    const searchText = document.getElementById('courseSearch').value.toLowerCase();
+    const typeFilter = document.getElementById('courseTypeFilter').value;
+    const semesterFilter = document.getElementById('semesterFilter').value;
+    
+    const courseItems = document.querySelectorAll('.course-item');
+    
+    courseItems.forEach(item => {
+        const courseText = item.textContent.toLowerCase();
+        const courseType = item.dataset.type;
+        const courseSemester = item.dataset.semester;
+        
+        const matchesSearch = courseText.includes(searchText);
+        const matchesType = !typeFilter || courseType === typeFilter;
+        const matchesSemester = !semesterFilter || courseSemester === semesterFilter;
+        
+        item.style.display = (matchesSearch && matchesType && matchesSemester) ? 'block' : 'none';
+    });
+}
+</script>
+{% endblock %}

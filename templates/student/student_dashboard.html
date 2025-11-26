@@ -1,0 +1,524 @@
+{% extends "layout.html" %}
+
+{% block title %}Student Dashboard - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 15px;
+        border: none;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .quick-action-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .upcoming-class {
+        border-left: 4px solid;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        background-color: white;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    
+    .upcoming-class:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .grade-badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    .progress-ring {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .progress-ring-circle {
+        transition: stroke-dashoffset 0.3s;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+    
+    .course-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .course-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-tachometer-alt me-2"></i>Student Dashboard
+    </h1>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-download me-2"></i>Export
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>Study Report</a></li>
+            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Grade Sheet</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Welcome Card -->
+<div class="card bg-primary text-white mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="card-title">Chào mừng trở lại, {{ current_user.full_name }}!</h4>
+                <p class="card-text mb-0">
+                    <i class="fas fa-user-graduate me-2"></i>
+                    {{ stats.current_courses }} môn học đang học • 
+                    GPA: {{ "%.2f"|format(stats.current_gpa) }} • 
+                    {{ stats.attendance_rate }}% chuyên cần
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <i class="fas fa-graduation-cap fa-4x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Môn học hiện tại
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.current_courses }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-book me-1"></i>{{ stats.total_credits }} tín chỉ
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-primary text-white">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            GPA hiện tại
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.2f"|format(stats.current_gpa) }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>0.15
+                            </span>
+                            <span>so với kỳ trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-success text-white">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Tỷ lệ chuyên cần
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.attendance_rate }}%</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-user-check me-1"></i>Good
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-info text-white">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Deadline sắp tới
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.upcoming_deadlines }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-danger me-2">
+                                <i class="fas fa-exclamation-circle me-1"></i>Urgent
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-warning text-white">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Actions -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bolt me-2"></i>Thao Tác Nhanh
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-primary text-white text-center p-3" 
+                            onclick="window.location.href='{{ url_for('student_scores') }}'">
+                            <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                            <h6 class="mb-0">Xem điểm</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-success text-white text-center p-3"
+                            onclick="window.location.href='{{ url_for('student_timetable') }}'">
+                            <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                            <h6 class="mb-0">Thời khóa biểu</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-info text-white text-center p-3"
+                             onclick="window.location.href='{{ url_for('student_notifications') }}'">
+                            <i class="fas fa-clipboard-list fa-2x mb-2"></i>
+                            <h6 class="mb-0">Thông bao</h6>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card quick-action-card bg-warning text-white text-center p-3"
+                            onclick="window.location.href='{{ url_for('student_profile') }}'">
+                            <i class="fas fa-user fa-2x mb-2"></i>
+                            <h6 class="mb-0">Hồ sơ</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Classes -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-clock me-2"></i>Lịch Học Hôm Nay
+                </h5>
+                <a href="{{ url_for('student_timetable') }}" class="btn btn-sm btn-outline-primary">Xem TKB</a>
+            </div>
+            <div class="card-body">
+                {% for class in today_classes %}
+                <div class="upcoming-class border-{{ 
+                    'primary' if class.type == 'theory' else 
+                    'success' if class.type == 'practice' else 
+                    'warning' 
+                }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ class.course_name }}</h6>
+                            <p class="mb-1 text-muted">
+                                <i class="fas fa-user-tie me-1"></i>{{ class.teacher }}
+                                • <i class="fas fa-map-marker-alt me-1"></i>{{ class.room }}
+                            </p>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>{{ class.time }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{{ 
+                                'primary' if class.type == 'theory' else 
+                                'success' if class.type == 'practice' else 
+                                'warning' 
+                            }}">
+                                {{ 
+                                    'Lý thuyết' if class.type == 'theory' else 
+                                    'Thực hành' if class.type == 'practice' else 
+                                    'Seminar' 
+                                }}
+                            </span>
+                            <br>
+                            <small class="text-muted">{{ class.status }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not today_classes %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Hôm nay không có lịch học</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Courses and Academic Progress -->
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-book me-2"></i>Môn Học Hiện Tại
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for registration in current_courses %}
+                    {% set course_obj = registration.course %}
+                    {% set current_score = registration.get_current_score() %}
+                    {% set score_obj = registration.get_score_object() %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card course-card border-0 h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="text-primary mb-0">{{ course_obj.subject.subject_name if course_obj and course_obj.subject else 'N/A' }}</h6>
+                                    <span class="badge grade-badge bg-{{ 
+                                        'success' if current_score and current_score >= 8.0 else 
+                                        'info' if current_score and current_score >= 6.5 else 
+                                        'warning' if current_score and current_score >= 5.0 else 
+                                        'danger' if current_score else 'secondary'
+                                    }}">
+                                        {{ "%.1f"|format(current_score) if current_score else '--' }}
+                                    </span>
+                                </div>
+                                <p class="text-muted small mb-2">
+                                    {{ course_obj.teacher.user.full_name if course_obj and course_obj.teacher and course_obj.teacher.user else 'N/A' }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">{{ course_obj.schedule if course_obj else 'Chưa có lịch' }}</small>
+                                    <small class="text-muted">{{ course_obj.subject.credits if course_obj and course_obj.subject else 0 }} TC</small>
+                                </div>
+                                <div class="progress mt-2" style="height: 4px;">
+                                    {% set progress = score_obj.progress if score_obj and score_obj.progress else 0 %}
+                                    <div class="progress-bar bg-{{ 
+                                        'success' if progress >= 80 else 
+                                        'warning' if progress >= 50 else 
+                                        'info' 
+                                    }}" style="width: {{ progress }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ progress }}% hoàn thành</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if not current_courses %}
+                <div class="text-center py-4">
+                    <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Chưa có môn học nào đang học</p>
+                    <a href="{{ url_for('student_course_register') }}" class="btn btn-primary mt-2">
+                        <i class="fas fa-clipboard-list me-2"></i>Đăng ký học phần
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>Tiến Độ Học Tập
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="position-relative d-inline-block mb-3">
+                    <svg class="progress-ring" width="80" height="80">
+                        <circle class="progress-ring-circle" stroke="#0d6efd" stroke-width="8" 
+                                fill="transparent" r="36" cx="40" cy="40"
+                                stroke-dasharray="226.2" stroke-dashoffset="{{ 226.2 * (1 - stats.overall_progress / 100) }}">
+                        </circle>
+                    </svg>
+                    <div class="position-absolute top-50 start-50 translate-middle">
+                        <span class="h4 mb-0">{{ stats.overall_progress }}%</span>
+                    </div>
+                </div>
+                <h6 class="text-primary">Tổng tiến độ học kỳ</h6>
+                <p class="text-muted small">Đã hoàn thành {{ stats.completed_credits }}/{{ stats.total_credits }} tín chỉ</p>
+                
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <small>Môn đã hoàn thành</small>
+                        <small class="text-success">{{ stats.completed_courses }}</small>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <small>Môn đang học</small>
+                        <small class="text-primary">{{ stats.current_courses }}</small>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <small>Môn sắp tới</small>
+                        <small class="text-warning">{{ stats.upcoming_courses }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Upcoming Deadlines and Notifications -->
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-exclamation-circle me-2"></i>Deadline Sắp Tới
+                </h5>
+                <a href="#" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+            </div>
+            <div class="card-body">
+                {% for deadline in upcoming_deadlines %}
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <div class="bg-{{ 
+                            'danger' if deadline.priority == 'high' else 
+                            'warning' if deadline.priority == 'medium' else 
+                            'info' 
+                        }} text-white rounded p-2 text-center" style="width: 50px;">
+                            <small class="d-block">{{ deadline.day }}</small>
+                            <strong class="d-block">{{ deadline.date }}</strong>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="mb-1">{{ deadline.title }}</h6>
+                        <p class="mb-1 text-muted">{{ deadline.course }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>{{ deadline.time_remaining }}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not upcoming_deadlines %}
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-muted mb-0">Không có deadline sắp tới</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bell me-2"></i>Thông Báo Mới
+                </h5>
+                <a href="{{ url_for('student_notifications') }}" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+            </div>
+            <div class="card-body">
+                {% for notification in recent_notifications %}
+                <div class="d-flex align-items-start mb-3">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-{{ notification.icon }} text-{{ notification.color }} fa-lg"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="mb-1">{{ notification.title }}</h6>
+                        <p class="mb-1 text-muted">{{ notification.message }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not recent_notifications %}
+                <div class="text-center py-4">
+                    <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Không có thông báo mới</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Update progress rings
+document.addEventListener('DOMContentLoaded', function() {
+    const progressRing = document.querySelector('.progress-ring-circle');
+    const progress = {{ stats.overall_progress }};
+    const circumference = 2 * Math.PI * 36;
+    const offset = circumference - (progress / 100) * circumference;
+    
+    progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+    progressRing.style.strokeDashoffset = offset;
+});
+
+// Any other dashboard specific JavaScript
+console.log('Student dashboard loaded');
+</script>
+{% endblock %}

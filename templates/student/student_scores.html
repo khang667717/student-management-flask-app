@@ -1,0 +1,657 @@
+{% extends "layout.html" %}
+
+{% block title %}Kết Quả Học Tập - Student{% endblock %}
+
+{% block extra_css %}
+<style>
+    .score-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .score-card:hover {
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .grade-badge {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+    
+    .score-progress {
+        height: 8px;
+        border-radius: 4px;
+    }
+    
+    .semester-tabs .nav-link {
+        border: none;
+        border-radius: 8px;
+        margin-right: 5px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .semester-tabs .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+    
+    .course-score-card {
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+    
+    .course-score-card:hover {
+        transform: translateX(5px);
+    }
+    
+    .score-excellent { border-left-color: #198754; background-color: #f0fff4; }
+    .score-good { border-left-color: #0dcaf0; background-color: #f0fdff; }
+    .score-average { border-left-color: #ffc107; background-color: #fffbf0; }
+    .score-poor { border-left-color: #dc3545; background-color: #fff5f5; }
+    
+    .gpa-chart {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .breakdown-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .breakdown-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-chart-bar me-2"></i>Kết Quả Học Tập
+    </h1>
+    <div>
+        <button class="btn btn-success me-2" onclick="exportScores()">
+            <i class="fas fa-file-export me-2"></i>Export Bảng Điểm
+        </button>
+        <button class="btn btn-primary" onclick="requestTranscript()">
+            <i class="fas fa-file-alt me-2"></i>Yêu Cầu Bảng Điểm
+        </button>
+    </div>
+</div>
+
+
+<!-- Academic Summary -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card score-card border-left-primary shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            GPA Hiện Tại
+                        </div>
+                        <div class="stat-number text-primary">{{ "%.2f"|format(current_gpa) }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>0.15
+                            </span>
+                            <span>so với kỳ trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card score-card border-left-success shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Tín Chỉ Tích Lũy
+                        </div>
+                        <div class="stat-number text-success">{{ total_credits }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-check-circle me-1"></i>{{ completed_credits }} đã hoàn thành
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-award fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card score-card border-left-info shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Môn Đã Hoàn Thành
+                        </div>
+                        <div class="stat-number text-info">{{ completed_courses }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-graduation-cap me-1"></i>{{ passed_courses }} môn đạt
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-book fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card score-card border-left-warning shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Xếp Hạng
+                        </div>
+                        <div class="stat-number text-warning">{{ ranking }}/{{ total_students }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-trophy me-1"></i>
+                                {% if ranking_percentage is defined %}
+                                    Top {{ "%.1f"|format(ranking_percentage) }}%
+                                {% else %}
+                                    Top 85%
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-trophy fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <!-- Semester Navigation -->
+        <div class="card score-card shadow mb-4">
+            <div class="card-body">
+                <ul class="nav nav-pills semester-tabs" id="semesterTabs" role="tablist">
+                    {% for semester in semesters %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ 'active' if loop.first else '' }}" 
+                                id="sem{{ semester.id }}-tab" data-bs-toggle="tab" 
+                                data-bs-target="#sem{{ semester.id }}" type="button">
+                            HK{{ semester.semester }} - {{ semester.year }}
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Courses Scores -->
+        <div class="tab-content" id="semesterTabsContent">
+            {% for semester in semesters %}
+            <div class="tab-pane fade {{ 'show active' if loop.first else '' }}" 
+                 id="sem{{ semester.id }}" role="tabpanel">
+                <div class="card score-card shadow">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary">
+                            Kết quả Học kỳ {{ semester.semester }} - {{ semester.year }}
+                        </h5>
+                        <span class="badge bg-primary">GPA: {{ "%.2f"|format(semester.gpa) }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% for course in semester.courses %}
+                        <div class="course-score-card 
+                            {{ 'score-excellent' if course.final_score >= 8.0 else 
+                               'score-good' if course.final_score >= 6.5 else 
+                               'score-average' if course.final_score >= 5.0 else 
+                               'score-poor' }} mb-3 p-3 rounded">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h6 class="mb-1">{{ course.course_name }}</h6>
+                                    <p class="mb-1 text-muted">{{ course.course_code }} • {{ course.credits }} tín chỉ</p>
+                                    <small class="text-muted">{{ course.teacher }}</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">QT</small>
+                                            <strong class="{{ 'text-success' if course.process_score >= 5.0 else 'text-danger' }}">
+                                                {{ "%.1f"|format(course.process_score) if course.process_score else '--' }}
+                                            </strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Thi</small>
+                                            <strong class="{{ 'text-success' if course.exam_score >= 5.0 else 'text-danger' }}">
+                                                {{ "%.1f"|format(course.exam_score) if course.exam_score else '--' }}
+                                            </strong>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted d-block">Tổng</small>
+                                            <strong class="{{ 'text-success' if course.final_score >= 5.0 else 'text-danger' }}">
+                                                {{ "%.1f"|format(course.final_score) if course.final_score else '--' }}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <span class="badge grade-badge bg-{{ 
+                                        'success' if course.final_score >= 8.0 else 
+                                        'info' if course.final_score >= 6.5 else 
+                                        'warning' if course.final_score >= 5.0 else 
+                                        'danger' 
+                                    }}">
+                                        {{ 
+                                            'A' if course.final_score >= 8.5 else 
+                                            'B+' if course.final_score >= 8.0 else 
+                                            'B' if course.final_score >= 7.0 else 
+                                            'C+' if course.final_score >= 6.5 else 
+                                            'C' if course.final_score >= 5.5 else 
+                                            'D+' if course.final_score >= 5.0 else 
+                                            'D' if course.final_score >= 4.0 else 
+                                            'F' 
+                                        }}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ 'Đạt' if course.final_score >= 5.0 else 'Trượt' }}
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            {% if course.components %}
+                            <div class="mt-3">
+                                <small class="text-muted d-block mb-2">Thành phần điểm:</small>
+                                <div class="row">
+                                    {% for component in course.components %}
+                                    <div class="col-md-3 mb-1">
+                                        <small class="text-muted">{{ component.name }} ({{ component.weight }}%):</small>
+                                        <strong>{{ "%.1f"|format(component.score) }}</strong>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <!-- GPA Trend Chart -->
+        <div class="card score-card shadow mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-line me-2"></i>Xu Hướng GPA
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="gpa-chart">
+                    <canvas id="gpaTrendChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Score Distribution -->
+        <div class="card score-card shadow mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>Phân Bố Điểm
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="scoreDistributionChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Academic Summary -->
+        <div class="card score-card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-info-circle me-2"></i>Tóm Tắt Học Tập
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="breakdown-item">
+                    <div class="d-flex justify-content-between">
+                        <span>Tổng số môn học:</span>
+                        <strong>{{ total_courses }}</strong>
+                    </div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="d-flex justify-content-between">
+                        <span>Môn đã hoàn thành:</span>
+                        <strong class="text-success">{{ completed_courses }}</strong>
+                    </div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="d-flex justify-content-between">
+                        <span>Môn đang học:</span>
+                        <strong class="text-primary">{{ current_courses }}</strong>
+                    </div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="d-flex justify-content-between">
+                        <span>Tỷ lệ hoàn thành:</span>
+                        <strong>{{ "%.1f"|format(completion_rate) }}%</strong>
+                    </div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="d-flex justify-content-between">
+                        <span>Tín chỉ tích lũy:</span>
+                        <strong>{{ completed_credits }}/{{ total_credits }}</strong>
+                    </div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="d-flex justify-content-between">
+                        <span>Xếp loại:</span>
+                        <strong class="text-warning">{{ academic_rank }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Score Details Modal -->
+<div class="modal fade" id="scoreDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Chi Tiết Điểm Số
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="scoreDetailsContent">
+                <!-- Score details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// GPA Trend Chart
+const gpaCtx = document.getElementById('gpaTrendChart').getContext('2d');
+const gpaChart = new Chart(gpaCtx, {
+    type: 'line',
+    data: {
+        labels: ['HK1-2021', 'HK2-2021', 'HK1-2022', 'HK2-2022', 'HK1-2023', 'HK2-2023'],
+        datasets: [{
+            label: 'GPA',
+            data: [3.0, 3.2, 3.1, 3.4, 3.3, 3.5],
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Xu hướng GPA qua các học kỳ'
+            }
+        },
+        scales: {
+            y: {
+                min: 2.0,
+                max: 4.0
+            }
+        }
+    }
+});
+
+// Score Distribution Chart
+const distCtx = document.getElementById('scoreDistributionChart').getContext('2d');
+const distChart = new Chart(distCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Xuất sắc (8.5-10)', 'Giỏi (7.0-8.4)', 'Khá (5.5-6.9)', 'Trung bình (4.0-5.4)', 'Yếu (<4.0)'],
+        datasets: [{
+            data: [15, 25, 35, 20, 5],
+            backgroundColor: [
+                '#198754',
+                '#20c997',
+                '#ffc107',
+                '#fd7e14',
+                '#dc3545'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+function exportScores() {
+    // Hiển thị modal cho lựa chọn export
+    showExportModal();
+}
+
+
+
+function requestTranscript() {
+    if (confirm('Bạn có muốn yêu cầu bảng điểm chính thức? Bảng điểm sẽ được gửi đến email của bạn.')) {
+        showToast('Đã gửi yêu cầu bảng điểm. Vui lòng kiểm tra email!', 'success');
+    }
+}
+
+
+
+function showScoreDetails(courseId) {
+    // In real application, this would fetch score details via AJAX
+    const modal = new bootstrap.Modal(document.getElementById('scoreDetailsModal'));
+    
+    document.getElementById('scoreDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Đang tải chi tiết điểm số...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Simulate loading
+    setTimeout(() => {
+        document.getElementById('scoreDetailsContent').innerHTML = `
+            <h6>Lập trình Python nâng cao - CS202</h6>
+            <p class="text-muted">3 tín chỉ • TS. Nguyễn Văn A</p>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Thành phần</th>
+                            <th>Trọng số</th>
+                            <th>Điểm số</th>
+                            <th>Điểm quy đổi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Bài tập cá nhân</td>
+                            <td>20%</td>
+                            <td>8.5</td>
+                            <td>1.7</td>
+                        </tr>
+                        <tr>
+                            <td>Quiz giữa kỳ</td>
+                            <td>20%</td>
+                            <td>7.5</td>
+                            <td>1.5</td>
+                        </tr>
+                        <tr>
+                            <td>Đồ án nhóm</td>
+                            <td>30%</td>
+                            <td>9.0</td>
+                            <td>2.7</td>
+                        </tr>
+                        <tr>
+                            <td>Thi cuối kỳ</td>
+                            <td>30%</td>
+                            <td>8.0</td>
+                            <td>2.4</td>
+                        </tr>
+                        <tr class="table-success">
+                            <td><strong>Tổng kết</strong></td>
+                            <td><strong>100%</strong></td>
+                            <td><strong>8.3</strong></td>
+                            <td><strong>8.3</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Xếp loại:</strong> Giỏi (B+) • <strong>Điểm chữ:</strong> B+ • <strong>Trạng thái:</strong> Đạt
+            </div>
+        `;
+    }, 1000);
+}
+
+function showExportModal() {
+    const modalHTML = `
+        <div class="modal fade" id="exportModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-file-export me-2"></i>Xuất Bảng Điểm
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row text-center">
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                                        <h5 class="card-title">Export Excel</h5>
+                                        <p class="card-text text-muted">Xuất bảng điểm ra file Excel với đầy đủ thông tin</p>
+                                        <button class="btn btn-success" onclick="exportToExcel()">
+                                            <i class="fas fa-download me-2"></i>Export Excel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                                        <h5 class="card-title">Export PDF</h5>
+                                        <p class="card-text text-muted">Xuất bảng điểm ra file PDF để in ấn</p>
+                                        <button class="btn btn-danger" onclick="exportToPDF()">
+                                            <i class="fas fa-download me-2"></i>Export PDF
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Thêm modal vào DOM nếu chưa có
+    if (!document.getElementById('exportModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    // Hiển thị modal
+    const exportModal = new bootstrap.Modal(document.getElementById('exportModal'));
+    exportModal.show();
+}
+
+function exportToExcel() {
+    showToast('Đang tạo file Excel...', 'info');
+    
+    // Đóng modal
+    const exportModal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+    if (exportModal) {
+        exportModal.hide();
+    }
+    
+    // Chuyển hướng đến route export Excel
+    window.location.href = '/student/export-scores-excel';
+}
+
+function exportToPDF() {
+    showToast('Đang tạo file PDF...', 'info');
+    
+    // Đóng modal
+    const exportModal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+    if (exportModal) {
+        exportModal.hide();
+    }
+    
+    // Chuyển hướng đến route export PDF
+    window.location.href = '/student/export-scores-pdf';
+}
+
+
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Initialize any score-specific functionality
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Student scores page loaded');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+# 🎓 Student Management System
+
+Đây là hệ thống quản lý sinh viên được xây dựng bằng Python/Flask.
+
+## 🚀 Thiết lập Môi trường Dự án
+
+Làm theo các bước sau để thiết lập và chạy ứng dụng trên máy tính cục bộ của bạn.
+
+### 1. Chuẩn bị File Cấu hình (`.env`)
+
+Dự án sử dụng file `.env` để quản lý các biến môi trường nhạy cảm và cấu hình.
+0.  ** nếu thấy file .env mà mấy ông vừa tải cái project này về thì xoá nó đi, tạo file .env mới
+1.  **Tạo file `.env`:** Trong thư mục gốc của dự án, tạo một file mới tên là **`.env`**.
+2.  **Sao chép và Dán cấu hình:** Sao chép nội dung cấu hình dưới đây và dán vào file `.env` của bạn.
+
+> **⚠️ Lưu ý Bảo mật:** Các giá trị `SECRET_KEY` và `MAIL_PASSWORD` dưới đây được cung cấp cho môi trường phát triển cục bộ. Nếu triển khai lên môi trường Production, bạn **PHẢI** thay đổi chúng thành các giá trị bảo mật mới, ngẫu nhiên và phức tạp.
+
+```ini
+# =============================================
+# CẤU HÌNH MÔI TRƯỜNG - STUDENT MANAGEMENT
+# =============================================
+
+# 🔐 BẢO MẬT ỨNG DỤNG
+SECRET_KEY=K6hD8sL2pX9wR4tU7vQ1mZ3cN5bJ8gF0eW2yA5dH7jM4nB9vC1xS6kL3pO8rT0q
+
+# 🗄️ CƠ SỞ DỮ LIỆU (MySQL)
+# Định dạng: mysql+pymysql://user:password@host:port/database_name
+# Thay đổi thông tin đăng nhập nếu CSDL MySQL cục bộ của bạn khác (root:12345678)
+DATABASE_URL=mysql+pymysql://root:12345678@localhost/student_management
+
+# 📧 CẤU HÌNH EMAIL (Gmail SMTP)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True 
+
+# THAY THẾ BẰNG THÔNG TIN EMAIL VÀ MẬT KHẨU ỨNG DỤNG CỦA BẠN (mấy ông đổi)
+MAIL_USERNAME=leduykhang25012005@gmail.com
+MAIL_PASSWORD=pnik xtzg qunx ulfk
+MAIL_DEFAULT_SENDER=leduykhang25012005@gmail.com 
+
+# 🔗 CẤU HÌNH REDIS (Cho Celery/Caching)
+REDIS_URL=redis://localhost:6379/0
+
+# 🌐 CẤU HÌNH ỨNG DỤNG
+FLASK_ENV=development
+DEBUG=True
+TESTING=False
+
+2. Thiết lập Môi trường Python (Python Environment)
+Mở Terminal/Command Prompt trong thư mục gốc của project.
+
+[Tùy chọn] Xóa môi trường ảo cũ: Nếu cần, bạn có thể xóa thư mục venv trước khi tạo mới.
+
+Thoát môi trường ảo cũ: deactivate
+
+Xóa thư mục: rm -rf venv (macOS/Linux) hoặc rmdir /s /q venv (Windows).
+
+Tạo Môi trường ảo (venv):
+
+
+Bash
+
+python -m venv venv
+Kích hoạt Môi trường:
+
+Windows:
+
+Bash
+
+.\venv\Scripts\activate
+macOS/Linux:
+
+Bash
+
+source venv/bin/activate
+Cài đặt Dependencies: Sử dụng tệp requirements.txt để cài đặt tất cả các thư viện cần thiết.
+
+Bash
+
+pip install -r requirements.txt
+3. 🗄️ Thiết lập Cơ sở dữ liệu (Database Setup)
+Dự án sử dụng MySQL và dữ liệu đã được cung cấp dưới dạng file SQL dump.
+
+3.1. Chuẩn bị Server
+Đảm bảo bạn đã:
+
+Cài đặt và chạy MySQL Server.
+
+Cài đặt và chạy Redis Server (nếu bạn có ý định sử dụng chức năng thông báo/hàng đợi).
+
+3.2. Import Dữ liệu
+Tạo Database: Mở công cụ quản lý MySQL của bạn và tạo một database mới với tên:
+
+SQL
+
+CREATE DATABASE student_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Import Dữ liệu: Sử dụng file student_management.sql (được cung cấp cùng với project) để import cấu trúc và dữ liệu.
+
+Bash
+
+mysql -u [USERNAME_CỦA_BẠN] -p student_management < student_management.sql
+(Thay [USERNAME_CỦA_BẠN] bằng username MySQL cục bộ của bạn. Nếu dùng cấu hình mặc định trong .env, username là root và password là 12345678).
+
+4. 📧 Cấu hình Email (Nếu bạn sử dụng Gmail)
+Nếu bạn gặp lỗi khi gửi email, bạn cần thay MAIL_PASSWORD bằng Mật khẩu ứng dụng (App Password) từ Google, thay vì mật khẩu tài khoản thông thường.
+
+Đảm bảo đã bật Xác minh 2 bước cho tài khoản Gmail của bạn.
+
+Truy cập Tài khoản Google -> Bảo mật -> Mật khẩu ứng dụng.
+
+Tạo một mật khẩu mới và sử dụng nó để cập nhật biến MAIL_PASSWORD trong file .env.
+
+5. ▶️ Chạy Ứng dụng
+Sau khi hoàn tất các bước trên, bạn có thể chạy ứng dụng Flask:
+
+Đảm bảo môi trường ảo đang được kích hoạt ((venv) hiển thị trên terminal).
+
+Chạy ứng dụng:
+
+Bash
+
+flask run
+Ứng dụng sẽ khả dụng tại http://127.0.0.1:5000/.
+
+
+6 Các Bước Quy trình hoạt động của admin 
+
+- Trang Chủ admin
+- Thêm User ở trang quản lý người dùng (chọn role Student, Teacher, Admin)
+- Trang Quản lý Môn học -> tạo môn học mới
+- Trang quản lý giáo viên -> phân công môn học trong danh sách giáo viên (không thêm giáo viên vào đây vì trang User sẽ tự động thêm )
+- Trang Quản lý lớp - tạo lớp môn học -> phân công giáo viên , học sinh vào lớp
+- Trang quản lý khoá học - tạo khoá học -> phân công giáo viên,lớp vào khoá học tương ứng (ở phần phân công giáo viên nó có thể hiện giáo viên này chưa gì đó với thông báo vàng... không cần quan tâm)
+- Trang quản lý đang ký học phần - admin tự động duyệt
+
+7 Các Bước Quy trình hoạt động của Teacher
+
+- Trang Chủ Teacher
+- Trang nhập điểm -> chọn lớp - nhập điếm cho sinh viên -> nhấn nút lưu
+- Trang danh sách lớp -> nhấn nút 3 chấm ở danh sách lớp -> hiện DS sinh viên -> nhấn vào thì qua trang danh sách sinh viên xem điểm 
+
+Thông Báo (học sinh kém)
+- Trang nhập điểm -> chọn lớp - nhập điếm cho sinh viên , sao cho sinh vien đó xếp loại F  -> nhấn nút lưu
+- Trang thông báo -> Mục điểm kém -> có 2 cách chọn : Thông báo hoặc Báo cáo (thông báo trên này và cả trên email của mấy ông khi chỉnh trong file .env)
+
+8 Các Bước Quy trình hoạt động của Student
+
+- Trang Chủ Student
+- Trang xem điểm
+- Trang lịch (tôi không có làm gì trong đó đâu)
+- Trang cá nhân
+- Trang thông báo khi khi giao viên thông báo điếm kém  (thông báo trên này và cả trên email của mấy ông khi chỉnh trong file .env)
+
+
+
+

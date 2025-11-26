@@ -1,0 +1,211 @@
+{% extends "layout.html" %}
+
+{% block title %}Đăng ký - Student Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow border-0">
+            <div class="card-header bg-success text-white text-center py-4">
+                <h3 class="mb-0">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Đăng Ký Tài Khoản Sinh Viên
+                </h3>
+                <p class="mb-0 mt-2">Tạo tài khoản mới để truy cập hệ thống</p>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('register') }}" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-user me-2"></i>Thông tin đăng nhập
+                            </h5>
+                            
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Tên đăng nhập *</label>
+                                {{ form.username(class="form-control", placeholder="Tên đăng nhập (6-20 ký tự)") }}
+                                {% if form.username.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.username.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                {{ form.email(class="form-control", placeholder="email@example.com") }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.email.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Mật khẩu *</label>
+                                {{ form.password(class="form-control", placeholder="Mật khẩu (ít nhất 6 ký tự)") }}
+                                {% if form.password.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.password.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Xác nhận mật khẩu *</label>
+                                {{ form.confirm_password(class="form-control", placeholder="Nhập lại mật khẩu") }}
+                                {% if form.confirm_password.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.confirm_password.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-id-card me-2"></i>Thông tin cá nhân
+                            </h5>
+
+                            <div class="mb-3">
+                                <label for="full_name" class="form-label">Họ và tên *</label>
+                                {{ form.full_name(class="form-control", placeholder="Nguyễn Văn A") }}
+                                {% if form.full_name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.full_name.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="student_id" class="form-label">Mã sinh viên *</label>
+                                {{ form.student_id(class="form-control", placeholder="SV001") }}
+                                {% if form.student_id.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.student_id.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="phone" class="form-label">Số điện thoại</label>
+                                {{ form.phone(class="form-control", placeholder="0123456789") }}
+                                {% if form.phone.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.phone.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="address" class="form-label">Địa chỉ</label>
+                                {{ form.address(class="form-control", placeholder="Địa chỉ liên hệ") }}
+                                {% if form.address.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.address.errors %}
+                                            <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        {{ form.agree_terms(class="form-check-input") }}
+                        <label class="form-check-label" for="agree_terms">
+                            Tôi đồng ý với <a href="#" class="text-decoration-none">điều khoản sử dụng</a> và 
+                            <a href="#" class="text-decoration-none">chính sách bảo mật</a>
+                        </label>
+                        {% if form.agree_terms.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.agree_terms.errors %}
+                                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-success btn-lg") }}
+                    </div>
+                </form>
+
+                <hr class="my-4">
+
+                <div class="text-center">
+                    <p class="mb-2">Đã có tài khoản?</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-sign-in-alt me-1"></i>Đăng nhập ngay
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Info -->
+        <div class="card mt-4 border-info">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-question-circle me-2"></i>Thông tin đăng ký
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check-circle text-success me-2"></i>Yêu cầu bắt buộc</h6>
+                        <ul class="small mb-0">
+                            <li>Tên đăng nhập: 6-20 ký tự</li>
+                            <li>Mật khẩu: ít nhất 6 ký tự</li>
+                            <li>Email hợp lệ</li>
+                            <li>Mã sinh viên duy nhất</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-clock text-warning me-2"></i>Quy trình xét duyệt</h6>
+                        <ul class="small mb-0">
+                            <li>Tài khoản cần được admin duyệt</li>
+                            <li>Thời gian xét duyệt: 24-48h</li>
+                            <li>Thông báo qua email khi được duyệt</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Real-time validation
+document.addEventListener('DOMContentLoaded', function() {
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    function validatePassword() {
+        if (password.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity('Mật khẩu xác nhận không khớp');
+        } else {
+            confirmPassword.setCustomValidity('');
+        }
+    }
+    
+    password.addEventListener('change', validatePassword);
+    confirmPassword.addEventListener('keyup', validatePassword);
+});
+</script>
+{% endblock %}

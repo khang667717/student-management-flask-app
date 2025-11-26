@@ -1,0 +1,582 @@
+{% extends "layout.html" %}
+
+{% block title %}Thời Khóa Biểu - Student{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timetable-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .timetable-card:hover {
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .timetable-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+    }
+    
+    .time-slot {
+        background-color: #f8f9fa;
+        border-right: 2px solid #e9ecef;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .day-header {
+        background-color: #0d6efd;
+        color: white;
+        font-weight: 600;
+        text-align: center;
+        padding: 10px;
+    }
+    
+    .class-slot {
+        border: 1px solid #e9ecef;
+        padding: 8px;
+        margin: 2px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-height: 80px;
+    }
+    
+    .class-slot:hover {
+        transform: scale(1.02);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .theory-class {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+    }
+    
+    .practice-class {
+        background-color: #e8f5e8;
+        border-left: 4px solid #4caf50;
+    }
+    
+    .lab-class {
+        background-color: #fff3e0;
+        border-left: 4px solid #ff9800;
+    }
+    
+    .seminar-class {
+        background-color: #f3e5f5;
+        border-left: 4px solid #9c27b0;
+    }
+    
+    .current-class {
+        box-shadow: 0 0 0 2px #ffc107;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+    
+    .view-toggle {
+        cursor: pointer;
+    }
+    
+    .view-toggle.active {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+    
+    .week-navigator {
+        background-color: white;
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .empty-slot {
+        background-color: #f8f9fa;
+        border: 1px dashed #dee2e6;
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-calendar-alt me-2"></i>Thời Khóa Biểu
+    </h1>
+    <div>
+        <div class="btn-group me-2">
+            <button class="btn btn-outline-primary view-toggle active" data-view="weekly">
+                <i class="fas fa-calendar-week me-2"></i>Theo tuần
+            </button>
+            <button class="btn btn-outline-primary view-toggle" data-view="daily">
+                <i class="fas fa-calendar-day me-2"></i>Theo ngày
+            </button>
+            <button class="btn btn-outline-primary view-toggle" data-view="list">
+                <i class="fas fa-list me-2"></i>Danh sách
+            </button>
+        </div>
+        <button class="btn btn-primary" onclick="exportTimetable()">
+            <i class="fas fa-download me-2"></i>Export
+        </button>
+    </div>
+</div>
+
+<!-- Week Navigator -->
+<div class="card timetable-card shadow mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="week-navigator">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-outline-primary" onclick="previousWeek()">
+                            <i class="fas fa-chevron-left me-2"></i>Tuần trước
+                        </button>
+                        <h5 class="mb-0 text-primary" id="currentWeekDisplay">
+                            Tuần {{ current_week.week }} ({{ current_week.start_date }} - {{ current_week.end_date }})
+                        </h5>
+                        <button class="btn btn-outline-primary" onclick="nextWeek()">
+                            Tuần sau<i class="fas fa-chevron-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-info" onclick="goToToday()">
+                        <i class="fas fa-calendar-day me-2"></i>Hôm nay
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="syncWithCalendar()">
+                        <i class="fas fa-sync me-2"></i>Đồng bộ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Timetable View -->
+<div id="weeklyView">
+    <div class="card timetable-card shadow">
+        <div class="timetable-header">
+            <div class="row text-center">
+                <div class="col-1">
+                    <strong>Tiết</strong>
+                </div>
+                <div class="col-2">
+                    <strong>Thứ 2</strong>
+                </div>
+                <div class="col-2">
+                    <strong>Thứ 3</strong>
+                </div>
+                <div class="col-2">
+                    <strong>Thứ 4</strong>
+                </div>
+                <div class="col-2">
+                    <strong>Thứ 5</strong>
+                </div>
+                <div class="col-2">
+                    <strong>Thứ 6</strong>
+                </div>
+                <div class="col-1">
+                    <strong>Thứ 7</strong>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% for time_slot in time_slots %}
+            <div class="row border-bottom">
+                <div class="col-1 time-slot text-center py-3">
+                    <strong>Tiết {{ time_slot.session }}</strong>
+                    <br>
+                    <small>{{ time_slot.time }}</small>
+                </div>
+                {% for day in ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'] %}
+                <div class="col-2 p-2">
+                    {% set class_found = false %}
+                    {% for class in timetable %}
+                        {% if class.day == day and class.session == time_slot.session %}
+                            {% set class_found = true %}
+                            <div class="class-slot {{ class.type }}-class {{ 'current-class' if class.is_current else '' }}"
+                                 data-bs-toggle="tooltip" 
+                                 title="{{ class.course_name }} - {{ class.room }}"
+                                 onclick="showClassDetails({{ class.id }})">
+                                <h6 class="mb-1">{{ class.course_code }}</h6>
+                                <p class="mb-1 small">{{ class.course_name }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-map-marker-alt me-1"></i>{{ class.room }}
+                                    <br>
+                                    <i class="fas fa-user-tie me-1"></i>{{ class.teacher }}
+                                </small>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not class_found %}
+                    <div class="empty-slot">
+                        <small>Trống</small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Daily Timetable View -->
+<div id="dailyView" style="display: none;">
+    <div class="card timetable-card shadow">
+        <div class="card-header bg-white">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-0 text-primary" id="dailyDateDisplay">Thứ 2, {{ current_week.start_date }}</h5>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="previousDay()">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="nextDay()">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% for time_slot in time_slots %}
+            <div class="row align-items-center mb-3 border-bottom pb-3">
+                <div class="col-md-2">
+                    <strong>Tiết {{ time_slot.session }}</strong>
+                    <br>
+                    <small class="text-muted">{{ time_slot.time }}</small>
+                </div>
+                <div class="col-md-10">
+                    {% set class_found = false %}
+                    {% for class in timetable %}
+                        {% if class.day == 'mon' and class.session == time_slot.session %}
+                            {% set class_found = true %}
+                            <div class="class-slot {{ class.type }}-class {{ 'current-class' if class.is_current else '' }} p-3"
+                                 onclick="showClassDetails({{ class.id }})">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-1">{{ class.course_name }}</h6>
+                                        <p class="mb-1 text-muted">{{ class.course_code }}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user-tie me-1"></i>{{ class.teacher }}
+                                            • <i class="fas fa-map-marker-alt me-1"></i>{{ class.room }}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <span class="badge bg-{{ 
+                                            'primary' if class.type == 'theory' else 
+                                            'success' if class.type == 'practice' else 
+                                            'warning' if class.type == 'lab' else 
+                                            'info' 
+                                        }}">
+                                            {{ 
+                                                'Lý thuyết' if class.type == 'theory' else 
+                                                'Thực hành' if class.type == 'practice' else 
+                                                'Phòng lab' if class.type == 'lab' else 
+                                                'Seminar' 
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not class_found %}
+                    <div class="empty-slot p-3">
+                        <i class="fas fa-coffee me-2"></i>Không có lịch học
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- List View -->
+<div id="listView" style="display: none;">
+    <div class="card timetable-card shadow">
+        <div class="card-header bg-white">
+            <h5 class="mb-0 text-primary">Danh sách Lớp Học</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Môn học</th>
+                            <th>Loại lớp</th>
+                            <th>Thời gian</th>
+                            <th>Phòng</th>
+                            <th>Giảng viên</th>
+                            <th>Tuần học</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in timetable %}
+                        <tr>
+                            <td>
+                                <strong>{{ class.course_code }}</strong>
+                                <br>
+                                <small class="text-muted">{{ class.course_name }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 
+                                    'primary' if class.type == 'theory' else 
+                                    'success' if class.type == 'practice' else 
+                                    'warning' if class.type == 'lab' else 
+                                    'info' 
+                                }}">
+                                    {{ 
+                                        'Lý thuyết' if class.type == 'theory' else 
+                                        'Thực hành' if class.type == 'practice' else 
+                                        'Phòng lab' if class.type == 'lab' else 
+                                        'Seminar' 
+                                    }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ class.day_name }} - Tiết {{ class.session }}
+                                <br>
+                                <small class="text-muted">{{ class.time }}</small>
+                            </td>
+                            <td>{{ class.room }}</td>
+                            <td>{{ class.teacher }}</td>
+                            <td>
+                                <span class="badge bg-secondary">Tuần {{ class.week }}</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="showClassDetails({{ class.id }})">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Details Modal -->
+<div class="modal fade" id="classDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Thông Tin Lớp Học
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="classDetailsContent">
+                <!-- Class details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="addToCalendar()">
+                    <i class="fas fa-calendar-plus me-2"></i>Thêm vào lịch
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timetable Statistics -->
+<div class="row mt-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.total_classes }}</h4>
+                <small>Tổng số lớp/tuần</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.credit_hours }}</h4>
+                <small>Giờ tín chỉ/tuần</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.theory_classes }}</h4>
+                <small>Lớp lý thuyết</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.practice_classes }}</h4>
+                <small>Lớp thực hành</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- THÊM PHẦN NÀY VÀO CUỐI -->
+    {% if ranking_percentage is defined %}
+    <div class="col-md-3 mb-3">
+        <div class="card bg-danger text-white">  <!-- Đổi màu để phân biệt -->
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ ranking_percentage }}%</h4>
+                <small>Xếp hạng</small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// View Toggle
+document.querySelectorAll('.view-toggle').forEach(button => {
+    button.addEventListener('click', function() {
+        document.querySelectorAll('.view-toggle').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.classList.add('active');
+        
+        const view = this.dataset.view;
+        document.getElementById('weeklyView').style.display = view === 'weekly' ? 'block' : 'none';
+        document.getElementById('dailyView').style.display = view === 'daily' ? 'block' : 'none';
+        document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
+    });
+});
+
+let currentWeek = {{ current_week.week }};
+
+function navigateToWeek(week) {
+    window.location.href = `/student/timetable?week=${week}`;
+}
+
+function previousWeek() {
+    currentWeek = Math.max(1, currentWeek - 1);
+    navigateToWeek(currentWeek);
+}
+
+function nextWeek() {
+    currentWeek = currentWeek + 1;
+    navigateToWeek(currentWeek);
+}
+
+function goToToday() {
+    navigateToWeek(1); // Hoặc tuần hiện tại thực tế
+    showToast('Đã chuyển đến tuần hiện tại', 'success');
+}
+
+function updateWeekDisplay() {
+    document.getElementById('currentWeekDisplay').textContent = 
+        `Tuần ${currentWeek} ({{ current_week.start_date }} - {{ current_week.end_date }})`;
+}
+
+function showClassDetails(classId) {
+    // Sử dụng dữ liệu thực tế từ server
+    const modal = new bootstrap.Modal(document.getElementById('classDetailsModal'));
+    
+    // Tạm thời dùng dữ liệu mẫu, sau này thay bằng AJAX
+    document.getElementById('classDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-12">
+                <h6>Thông tin lớp học</h6>
+                <p class="text-muted">ID: ${classId}</p>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-6">
+                <strong><i class="fas fa-user-tie me-2"></i>Giảng viên:</strong>
+                <p class="mb-0">Đang tải...</p>
+            </div>
+            <div class="col-6">
+                <strong><i class="fas fa-map-marker-alt me-2"></i>Phòng:</strong>
+                <p class="mb-0">Đang tải...</p>
+            </div>
+        </div>
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Đang tải thông tin...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // TODO: Thêm AJAX call để load thông tin thực tế
+}
+
+// Các hàm khác giữ nguyên
+function addToCalendar() {
+    showToast('Đã thêm lớp học vào lịch của bạn', 'success');
+}
+
+function syncWithCalendar() {
+    showToast('Đang đồng bộ với lịch...', 'info');
+    setTimeout(() => {
+        showToast('Đã đồng bộ thành công', 'success');
+    }, 1000);
+}
+
+function exportTimetable() {
+    window.location.href = '/api/student/timetable/export?week=' + currentWeek;
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Initialize tooltips
+const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+
+// Auto-refresh current class highlights
+function updateCurrentClass() {
+    const now = new Date();
+    // Logic highlight lớp học hiện tại
+    document.querySelectorAll('.class-slot').forEach(slot => {
+        slot.classList.remove('current-class');
+        // Thêm logic kiểm tra thời gian thực tế
+    });
+}
+
+setInterval(updateCurrentClass, 60000);
+</script>
+{% endblock %}

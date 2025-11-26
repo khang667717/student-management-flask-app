@@ -1,0 +1,16 @@
+# Tạo file .gitignore
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+*.db
+*.sqlite3
+uploads/
+exported_db/
+instance/
+.DS_Store
+

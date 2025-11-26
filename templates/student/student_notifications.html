@@ -1,0 +1,627 @@
+{% extends "layout.html" %}
+
+{% block title %}Thông Báo - Student{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notification-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+    
+    .notification-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .notification-unread {
+        border-left: 4px solid #0d6efd;
+        background-color: #f8f9fa;
+    }
+    
+    .notification-important {
+        border-left: 4px solid #dc3545;
+        background-color: #fff5f5;
+    }
+    
+    .notification-warning {
+        border-left: 4px solid #ffc107;
+        background-color: #fffbf0;
+    }
+    
+    .notification-success {
+        border-left: 4px solid #198754;
+        background-color: #f0fff4;
+    }
+    
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+    
+    .notification-badge {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+    
+    .filter-tabs .nav-link {
+        border: none;
+        border-radius: 8px;
+        margin-right: 5px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .filter-tabs .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .mark-all-read {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-bell me-2"></i>Thông Báo
+    </h1>
+    <div>
+        <button class="btn btn-outline-primary me-2" onclick="markAllAsRead()">
+            <i class="fas fa-check-double me-2"></i>Đánh dấu đã đọc
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#notificationSettingsModal">
+            <i class="fas fa-cog me-2"></i>Cài đặt
+        </button>
+    </div>
+</div>
+
+<!-- Notification Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Thông báo mới
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.unread_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-bell fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Học tập
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.academic_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Deadline
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.deadline_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Hệ thống
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.system_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-cog fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Filter Tabs -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-white py-3">
+                <ul class="nav nav-pills filter-tabs" id="notificationTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button">
+                            <i class="fas fa-list me-1"></i>Tất cả
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="unread-tab" data-bs-toggle="tab" data-bs-target="#unread" type="button">
+                            <i class="fas fa-envelope me-1"></i>Chưa đọc
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button">
+                            <i class="fas fa-graduation-cap me-1"></i>Học tập
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="deadline-tab" data-bs-toggle="tab" data-bs-target="#deadline" type="button">
+                            <i class="fas fa-clock me-1"></i>Deadline
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Notifications List -->
+        <div class="tab-content" id="notificationTabsContent">
+            <!-- All Notifications -->
+            <div class="tab-pane fade show active" id="all" role="tabpanel">
+                {% for notification in notifications %}
+                <div class="card notification-card {{ 'notification-unread' if not notification.read else '' }} {{ 'notification-important' if notification.priority == 'high' else 'notification-warning' if notification.priority == 'medium' else 'notification-success' if notification.type == 'success' else '' }}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-{{ 
+                                    'danger' if notification.priority == 'high' else 
+                                    'warning' if notification.priority == 'medium' else 
+                                    'success' if notification.type == 'success' else 
+                                    'primary' 
+                                }} text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-1">{{ notification.title }}</h6>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary border-0" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item mark-all-read" href="#" onclick="markAsRead({{ notification.id }})">
+                                                    <i class="fas fa-check me-2"></i>Đánh dấu đã đọc
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="deleteNotification({{ notification.id }})">
+                                                    <i class="fas fa-trash me-2"></i>Xóa thông báo
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <div>
+                                        {% if not notification.read %}
+                                        <span class="badge notification-badge bg-primary">Mới</span>
+                                        {% endif %}
+                                        {% if notification.priority == 'high' %}
+                                        <span class="badge notification-badge bg-danger">Quan trọng</span>
+                                        {% endif %}
+                                        <span class="badge notification-badge bg-secondary">{{ notification.category }}</span>
+                                    </div>
+                                </div>
+                                
+                                {% if notification.actions %}
+                                <div class="mt-3">
+                                    {% for action in notification.actions %}
+                                    <button class="btn btn-sm btn-{{ action.type }} me-2" onclick="{{ action.handler }}">
+                                        <i class="fas fa-{{ action.icon }} me-1"></i>{{ action.text }}
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <h4>Không có thông báo</h4>
+                    <p>Bạn không có thông báo nào ở thời điểm hiện tại.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Unread Notifications -->
+            <div class="tab-pane fade" id="unread" role="tabpanel">
+                {% set unread_notifications = notifications | selectattr("read", "false") | list %}
+                {% for notification in unread_notifications %}
+                <div class="card notification-card notification-unread">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-primary text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <span class="badge notification-badge bg-primary">Mới</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not unread_notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <h4>Không có thông báo chưa đọc</h4>
+                    <p>Tất cả thông báo đã được đọc.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Academic Notifications -->
+            <div class="tab-pane fade" id="academic" role="tabpanel">
+                {% set academic_notifications = notifications | selectattr("category", "equalto", "Học tập") | list %}
+                {% for notification in academic_notifications %}
+                <div class="card notification-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-success text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <span class="badge notification-badge bg-success">Học tập</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not academic_notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h4>Không có thông báo học tập</h4>
+                    <p>Không có thông báo nào về học tập.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Deadline Notifications -->
+            <div class="tab-pane fade" id="deadline" role="tabpanel">
+                {% set deadline_notifications = notifications | selectattr("category", "equalto", "Deadline") | list %}
+                {% for notification in deadline_notifications %}
+                <div class="card notification-card notification-warning">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-warning text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <span class="badge notification-badge bg-warning">Deadline</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not deadline_notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-clock"></i>
+                    <h4>Không có thông báo deadline</h4>
+                    <p>Không có deadline nào sắp tới.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Load More Button -->
+        {% if notifications %}
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-primary" onclick="loadMoreNotifications()">
+                <i class="fas fa-arrow-down me-2"></i>Tải thêm thông báo
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Notification Settings -->
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-cog me-2"></i>Cài đặt Thông báo
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-primary">Loại thông báo</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="academicNotifications" checked>
+                        <label class="form-check-label" for="academicNotifications">
+                            Thông báo học tập
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="deadlineNotifications" checked>
+                        <label class="form-check-label" for="deadlineNotifications">
+                            Nhắc nhở deadline
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="scoreNotifications" checked>
+                        <label class="form-check-label" for="scoreNotifications">
+                            Thông báo điểm số
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="systemNotifications">
+                        <label class="form-check-label" for="systemNotifications">
+                            Thông báo hệ thống
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-primary">Phương thức nhận</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                        <label class="form-check-label" for="emailNotifications">
+                            Email
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="pushNotifications" checked>
+                        <label class="form-check-label" for="pushNotifications">
+                            Push Notification
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="smsNotifications">
+                        <label class="form-check-label" for="smsNotifications">
+                            SMS
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-primary">Tần suất</h6>
+                    <select class="form-select" id="notificationFrequency">
+                        <option value="immediate">Ngay lập tức</option>
+                        <option value="daily" selected>Hàng ngày</option>
+                        <option value="weekly">Hàng tuần</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary w-100" onclick="saveNotificationSettings()">
+                    <i class="fas fa-save me-2"></i>Lưu cài đặt
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card shadow mt-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bolt me-2"></i>Thao tác nhanh
+                </h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-outline-primary w-100 mb-2" onclick="clearAllNotifications()">
+                    <i class="fas fa-trash me-2"></i>Xóa tất cả thông báo
+                </button>
+                <button class="btn btn-outline-success w-100 mb-2" onclick="exportNotifications()">
+                    <i class="fas fa-download me-2"></i>Export thông báo
+                </button>
+                <button class="btn btn-outline-info w-100" onclick="testNotification()">
+                    <i class="fas fa-bell me-2"></i>Kiểm tra thông báo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Settings Modal -->
+<div class="modal fade" id="notificationSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog me-2"></i>Cài đặt Thông báo Chi tiết
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Chi tiết cài đặt thông báo nâng cao...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Student notification specific functions would go here
+// Most functions are similar to teacher notifications
+
+function markAsRead(notificationId) {
+    console.log('Marking notification as read:', notificationId);
+    const notificationCard = document.querySelector(`[onclick="markAsRead(${notificationId})"]`).closest('.notification-card');
+    notificationCard.classList.remove('notification-unread');
+    showToast('Đã đánh dấu đã đọc', 'success');
+}
+
+function markAllAsRead() {
+    if (confirm('Bạn có chắc muốn đánh dấu tất cả thông báo là đã đọc?')) {
+        document.querySelectorAll('.notification-unread').forEach(card => {
+            card.classList.remove('notification-unread');
+        });
+        showToast('Đã đánh dấu tất cả thông báo là đã đọc', 'success');
+    }
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('Bạn có chắc muốn xóa thông báo này?')) {
+        const notificationCard = document.querySelector(`[onclick="deleteNotification(${notificationId})"]`).closest('.notification-card');
+        notificationCard.remove();
+        showToast('Đã xóa thông báo', 'success');
+    }
+}
+
+function clearAllNotifications() {
+    if (confirm('Bạn có chắc muốn xóa tất cả thông báo? Hành động này không thể hoàn tác.')) {
+        document.querySelectorAll('.notification-card').forEach(card => {
+            card.remove();
+        });
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.innerHTML = `
+            <i class="fas fa-bell-slash"></i>
+            <h4>Không có thông báo</h4>
+            <p>Bạn không có thông báo nào ở thời điểm hiện tại.</p>
+        `;
+        document.querySelector('#all').appendChild(emptyState);
+        showToast('Đã xóa tất cả thông báo', 'success');
+    }
+}
+
+function loadMoreNotifications() {
+    showToast('Đang tải thêm thông báo...', 'info');
+    setTimeout(() => {
+        showToast('Đã tải thêm thông báo', 'success');
+    }, 1000);
+}
+
+function exportNotifications() {
+    alert('Export thông báo ra file Excel');
+}
+
+function testNotification() {
+    if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                new Notification('Test Thông báo', {
+                    body: 'Đây là thông báo kiểm tra từ hệ thống',
+                    icon: '/static/images/logo.png'
+                });
+                showToast('Đã gửi thông báo kiểm tra', 'success');
+            }
+        });
+    } else {
+        showToast('Trình duyệt không hỗ trợ thông báo', 'warning');
+    }
+}
+
+function saveNotificationSettings() {
+    showToast('Đã lưu cài đặt thông báo', 'success');
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Initialize notification badges
+document.addEventListener('DOMContentLoaded', function() {
+    const unreadCount = {{ stats.unread_count }};
+    if (unreadCount > 0) {
+        const badge = document.querySelector('.navbar .fa-bell').parentNode.querySelector('.badge');
+        if (badge) {
+            badge.textContent = unreadCount;
+        }
+    }
+});
+</script>
+{% endblock %}

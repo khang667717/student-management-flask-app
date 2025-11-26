@@ -1,0 +1,493 @@
+{% extends "layout.html" %}
+
+{% block title %}Danh sách Sinh Viên - Teacher{% endblock %}
+
+{% block extra_css %}
+<style>
+    .student-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .score-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+    
+    .attendance-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .present { background-color: #198754; }
+    .absent { background-color: #dc3545; }
+    .late { background-color: #ffc107; }
+    
+    .class-info-card {
+        border-left: 4px solid #0d6efd;
+        margin-bottom: 20px;
+    }
+    
+    .action-buttons {
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if config.DEBUG %}
+<div class="alert alert-info">
+    <h6>Debug Info:</h6>
+    <p>Tổng số lớp: {{ classes|length }}</p>
+    {% for class in classes %}
+    <p>Lớp {{ class.class_name }}: {{ class.student_count }} SV, {{ class.course_count }} môn</p>
+    {% endfor %}
+</div>
+{% endif %}
+
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('teacher_class_list') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-2"></i>DS Lớp
+        </a>
+        
+        {% if current_course %}
+        <a href="{{ url_for('teacher_input_scores', course_id=current_course.id) }}" 
+           class="btn btn-outline-primary me-2">
+            <i class="fas fa-edit me-2"></i>Nhập Điểm
+        </a>
+        {% endif %}
+        
+        <h1 class="h3 mb-0 text-primary d-inline-block">
+            <i class="fas fa-user-graduate me-2"></i>
+            {% if current_course %}
+                Danh sách Sinh Viên - {{ current_course.course_code }}
+            {% elif current_class_id %}
+                Danh sách Sinh Viên Toàn Lớp
+            {% else %}
+                Danh sách Sinh Viên
+            {% endif %}
+        </h1>
+    </div>
+    <div class="d-flex align-items-center">
+        <div class="btn-group me-2">
+            <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-file-export me-2"></i>Export
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="exportStudentList('excel')">
+                    <i class="fas fa-file-excel me-2 text-success"></i>Export Excel
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="exportStudentList('pdf')">
+                    <i class="fas fa-file-pdf me-2 text-danger"></i>Export PDF
+                </a></li>
+            </ul>
+        </div>
+        
+        {% if current_course %}
+        <button class="btn btn-primary" onclick="exportScores()">
+            <i class="fas fa-download me-2"></i>Export Điểm
+        </button>
+        {% endif %}
+    </div>
+</div>
+<!-- Class Information -->
+<div class="card class-info-card shadow">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="text-primary mb-2">{{ current_course.subject_name }}</h4>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-code me-2"></i>{{ current_course.course_code }} • 
+                    <i class="fas fa-users me-2"></i>{{ students|length }} sinh viên • 
+                    <i class="fas fa-calendar me-2"></i>HK{{ current_course.semester }} • 
+                    <i class="fas fa-map-marker-alt me-2"></i>{{ current_course.room }}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="h4 text-primary mb-0">{{ "%.2f"|format(class_stats.avg_score) }}</div>
+                        <small class="text-muted">Điểm TB</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h4 text-success mb-0">{{ class_stats.attendance_rate }}%</div>
+                        <small class="text-muted">Chuyên cần</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h4 text-warning mb-0">{{ class_stats.pass_rate }}%</div>
+                        <small class="text-muted">Tỷ lệ đỗ</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not current_course and not current_class_id %}
+<div class="alert alert-info">
+    <h6><i class="fas fa-info-circle me-2"></i>Thông tin</h6>
+    <p class="mb-0">Đang hiển thị tất cả sinh viên từ các khóa học bạn đang dạy.</p>
+</div>
+{% endif %}
+
+<!-- Filters and Search -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label">Tìm kiếm sinh viên</label>
+                <input type="text" class="form-control" placeholder="Mã SV, tên, lớp..." id="searchInput">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Lớp</label>
+                <select class="form-select" id="classFilter">
+                    <option value="">Tất cả lớp</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Trạng thái học tập</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="good">Học tốt</option>
+                    <option value="average">Trung bình</option>
+                    <option value="weak">Yếu</option>
+                    <option value="warning">Cảnh báo</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="fas fa-redo me-2"></i>Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students Table -->
+<div class="card shadow">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-list me-2"></i>Danh sách Sinh Viên
+        </h5>
+        <span class="badge bg-primary">{{ students|length }} sinh viên</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="studentsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>STT</th>
+                        <th>Sinh viên</th>
+                        <th>Mã SV</th>
+                        <th>Lớp</th>
+                        <th>Điểm QT</th>
+                        <th>Điểm thi</th>
+                        <th>Điểm tổng</th>
+                        <th>Xếp loại</th>
+                        <th>Chuyên cần</th>
+                        <th>Trạng thái</th>
+                        <th width="120" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ student.avatar or url_for('static', filename='images/default-avatar.png') }}" 
+                                     alt="Avatar" class="student-avatar me-3">
+                                <div>
+                                    <h6 class="mb-0">{{ student.full_name }}</h6>
+                                    <small class="text-muted">{{ student.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="text-primary">{{ student.student_id }}</strong>
+                        </td>
+                        <td>{{ student.class_name }}</td>
+                        <td>
+                            {% if student.process_score is not none %}
+                                <span class="badge score-badge bg-info">{{ "%.1f"|format(student.process_score) }}</span>
+                            {% else %}
+                                <span class="badge score-badge bg-secondary">Chưa có</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if student.exam_score is not none %}
+                                <span class="badge score-badge bg-warning">{{ "%.1f"|format(student.exam_score) }}</span>
+                            {% else %}
+                                <span class="badge score-badge bg-secondary">Chưa có</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if student.final_score is not none %}
+                                <span class="badge score-badge bg-{{ 
+                                    'success' if student.final_score >= 8.0 else 
+                                    'info' if student.final_score >= 6.5 else 
+                                    'warning' if student.final_score >= 5.0 else 
+                                    'danger' 
+                                }}">
+                                    {{ "%.1f"|format(student.final_score) }}
+                                </span>
+                            {% else %}
+                                <span class="badge score-badge bg-secondary">Chưa có</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if student.grade %}
+                                <span class="badge bg-{{ 
+                                    'success' if student.grade in ['A+', 'A', 'B+'] else 
+                                    'info' if student.grade in ['B', 'C+'] else 
+                                    'warning' if student.grade in ['C', 'D+'] else 
+                                    'danger' 
+                                }}">
+                                    {{ student.grade }}
+                                </span>
+                            {% else %}
+                            <span class="badge bg-secondary">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="attendance-dot {{ 
+                                'present' if student.attendance_rate >= 80 else 
+                                'late' if student.attendance_rate >= 60 else 
+                                'absent' 
+                            }}"></span>
+                            {{ student.attendance_rate }}%
+                        </td>
+                        <td>
+                            {% if student.final_score is not none %}
+                                {% if student.final_score >= 5.0 %}
+                                    <span class="badge bg-success">Đạt</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Trượt</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Đang học</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center action-buttons">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary"
+                                        data-bs-toggle="tooltip"
+                                        title="Xem chi tiết"
+                                        onclick="viewStudent({{ student.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-warning"
+                                        data-bs-toggle="tooltip"
+                                        title="Nhập điểm"
+                                        onclick="inputScore({{ student.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-info"
+                                        data-bs-toggle="tooltip"
+                                        title="Điểm danh"
+                                        onclick="takeAttendance({{ student.id }})">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">Previous</a>
+                </li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item">
+                    <a class="page-link" href="#">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Student Details Modal -->
+<div class="modal fade" id="studentDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-graduate me-2"></i>Thông tin Sinh viên
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentDetailsContent">
+                <!-- Student details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('classFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterStudents();
+}
+
+function filterStudents() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const classFilter = document.getElementById('classFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('#studentsTable tbody tr');
+    
+    rows.forEach(row => {
+        const studentName = row.cells[1].textContent.toLowerCase();
+        const studentId = row.cells[2].textContent.toLowerCase();
+        const className = row.cells[3].textContent;
+        const status = row.cells[8].textContent.toLowerCase();
+        
+        const matchesSearch = studentName.includes(searchText) || studentId.includes(searchText);
+        const matchesClass = !classFilter || className === classFilter;
+        const matchesStatus = !statusFilter || status.includes(statusFilter);
+        
+        row.style.display = (matchesSearch && matchesClass && matchesStatus) ? '' : 'none';
+    });
+}
+
+function viewStudent(studentId) {
+    // In a real application, you would fetch student details via AJAX
+    const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
+    document.getElementById('studentDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Đang tải thông tin sinh viên...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Simulate loading student details
+    setTimeout(() => {
+        document.getElementById('studentDetailsContent').innerHTML = `
+            <div class="row">
+                <div class="col-md-4 text-center">
+                    <img src="{{ url_for('static', filename='images/default-avatar.png') }}" 
+                         alt="Avatar" class="student-avatar mb-3" style="width: 100px; height: 100px;">
+                    <h5>Nguyễn Văn A</h5>
+                    <p class="text-muted">SV001</p>
+                </div>
+                <div class="col-md-8">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Lớp:</strong> CT1
+                        </div>
+                        <div class="col-6">
+                            <strong>Khóa:</strong> K2023
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Email:</strong> student@example.com
+                        </div>
+                        <div class="col-6">
+                            <strong>Điện thoại:</strong> 0123456789
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <strong>Địa chỉ:</strong> Hà Nội
+                        </div>
+                    </div>
+                    <hr>
+                    <h6>Kết quả học tập</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="h4 text-primary mb-0">8.5</div>
+                            <small class="text-muted">Điểm QT</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-warning mb-0">7.5</div>
+                            <small class="text-muted">Điểm thi</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-success mb-0">8.0</div>
+                            <small class="text-muted">Điểm tổng</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }, 1000);
+}
+
+function inputScore(studentId) {
+    // Redirect to input scores page for this student
+    window.location.href = "{{ url_for('teacher_input_scores') }}?student_id=" + studentId;
+
+}
+
+function takeAttendance(studentId) {
+    alert('Điểm danh sinh viên: ' + studentId);
+    // Implement attendance functionality
+}
+
+function exportStudentList(format = 'excel') {
+    const courseId = '{{ current_course.id if current_course else "" }}';
+    const classId = '{{ current_class_id if current_class_id else "" }}';
+    
+    let url = '';
+    if (format === 'excel') {
+        url = '{{ url_for("export_teacher_students_excel") }}';
+    } else {
+        url = '{{ url_for("export_teacher_students_pdf") }}';
+    }
+    
+    // Thêm tham số nếu có
+    if (courseId) {
+        url += `?course_id=${courseId}`;
+    } else if (classId) {
+        url += `?class_id=${classId}`;
+    }
+    
+    window.location.href = url;
+}
+
+
+function exportScores() {
+    const courseId = '{{ current_course.id if current_course else "" }}';
+    if (courseId) {
+        window.location.href = '{{ url_for("api_export_scores", course_id=0) }}'.replace('0', courseId);
+    } else {
+        alert('Vui lòng chọn một khóa học cụ thể để export điểm');
+    }
+}
+
+// Event listeners for filters
+document.getElementById('searchInput').addEventListener('input', filterStudents);
+document.getElementById('classFilter').addEventListener('change', filterStudents);
+document.getElementById('statusFilter').addEventListener('change', filterStudents);
+
+// Initialize tooltips
+const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1400 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý Lớp Học - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .class-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .class-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .class-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .student-count {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    .view-toggle {
+        cursor: pointer;
+    }
+    
+    .view-toggle.active {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Thêm vào phần header cùng với các nút khác -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-school me-2"></i>Quản lý Lớp Học
+    </h1>
+    <div>
+        <div class="btn-group me-2">
+            <button class="btn btn-outline-primary view-toggle active" data-view="grid">
+                <i class="fas fa-th me-2"></i>Grid
+            </button>
+            <button class="btn btn-outline-primary view-toggle" data-view="list">
+                <i class="fas fa-list me-2"></i>List
+            </button>
+        </div>
+        <!-- Thêm nút export -->
+        <div class="btn-group me-2">
+            <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-download me-2"></i>Export
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="exportToExcel('classes')"><i class="fas fa-file-excel me-2 text-success"></i>Export Excel</a></li>
+                
+            </ul>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClassModal">
+            <i class="fas fa-plus me-2"></i>Thêm Lớp
+        </button>
+    </div>
+</div>
+<!-- Class Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card class-card bg-primary text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">
+                            Tổng Lớp Học
+                        </div>
+                        <div class="h5 mb-0">{{ stats.total_classes }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-school fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card class-card bg-success text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">
+                            Tổng Sinh Viên
+                        </div>
+                        <div class="h5 mb-0">{{ stats.total_students }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card class-card bg-info text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">
+                            SV/Lớp (TB)
+                        </div>
+                        <div class="h5 mb-0">{{ "%.1f"|format(stats.avg_students_per_class) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-friends fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card class-card bg-warning text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">
+                            Lớp mới (tháng)
+                        </div>
+                        <div class="h5 mb-0">{{ stats.new_classes_this_month }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-plus fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Class Modal -->
+<div class="modal fade" id="editClassModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Chỉnh sửa Lớp Học
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editClassForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="edit_class_id" name="class_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mã lớp *</label>
+                                <input type="text" class="form-control" id="edit_class_code" name="class_code" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tên lớp *</label>
+                                <input type="text" class="form-control" id="edit_class_name" name="class_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Khóa học *</label>
+                                <select class="form-select" id="edit_course" name="course" required>
+                                    <option value="K2020">K2020</option>
+                                    <option value="K2021">K2021</option>
+                                    <option value="K2022">K2022</option>
+                                    <option value="K2023">K2023</option>
+                                    <option value="K2024">K2024</option>
+                                    <option value="K2025">K2025</option>
+                                    <option value="K2026">K2026</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Khoa/Viện *</label>
+                                <select class="form-select" id="edit_faculty" name="faculty" required>
+                                    <option value="cntt">Công nghệ thông tin</option>
+                                    <option value="csdl">Cơ sở dữ liệu</option>
+                                    <option value="nmhm">Nhập môn học máy</option>
+                                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                                    <option value="nn">Ngôn ngữ anh</option>
+                                    <option value="kt">Kế Toán</option>
+                                    <option value="qtkd">Quản trị kinh doanh</option>
+                                    <option value="dl">Du lịch</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Giáo viên chủ nhiệm</label>
+                                <select class="form-select" id="edit_teacher_id" name="teacher_id">
+                                    <option value="">Chọn giáo viên</option>
+                                    {% for teacher in teachers %}
+                                    <option value="{{ teacher.id }}">{{ teacher.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số lượng SV tối đa</label>
+                                <input type="number" class="form-control" id="edit_max_students" name="max_students" value="50">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3" placeholder="Mô tả về lớp học..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning">Cập nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <label class="form-label">Khóa học</label>
+                <select class="form-select" id="courseFilter">
+                    <option value="">Tất cả</option>
+                    <option value="K2020">K2020</option>
+                    <option value="K2021">K2021</option>
+                    <option value="K2022">K2022</option>
+                    <option value="K2023">K2023</option>
+                    <option value="K2024">K2024</option>
+                    <option value="K2025">K2025</option>
+                    <option value="K2026">K2026</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Khoa/Viện</label>
+                <select class="form-select" id="facultyFilter">
+                    <option value="">Tất cả</option>
+                    <option value="cntt">Công nghệ thông tin</option>
+                    <option value="csdl">Cơ sở dữ liệu</option>
+                    <option value="nmhm">Nhập môn học máy </option>
+                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                    <option value="nn">Ngôn ngữ anh</option>
+                    <option value="kt">Kế Toán</option>
+                    <option value="qtkd">Quản trị kinh doanh</option>
+                    <option value="dl">Du lịch</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="active">Đang học</option>
+                    <option value="graduated">Đã tốt nghiệp</option>
+                    <option value="inactive">Ngừng hoạt động</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="fas fa-redo me-2"></i>Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grid View -->
+<div id="gridView">
+    <div class="row" id="classesGrid">
+        {% for class in classes %}
+        <div class="col-xl-4 col-md-6 mb-4 class-item" 
+             data-course="{{ class.course }}" 
+             data-faculty="{{ class.faculty }}" 
+             data-status="{{ class.status }}">
+            <div class="card class-card shadow border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="class-icon bg-primary text-white">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                    type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="viewClass({{ class.id }})">
+                                        <i class="fas fa-eye me-2"></i>Xem chi tiết
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="editClass({{ class.id }})">
+                                        <i class="fas fa-edit me-2"></i>Chỉnh sửa
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="manageStudents({{ class.id }})">
+                                        <i class="fas fa-user-graduate me-2"></i>Quản lý SV
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" 
+                                       onclick="deleteClass({{ class.id }}, '{{ class.name }}')">
+                                        <i class="fas fa-trash me-2"></i>Xóa lớp
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h5 class="card-title text-primary">{{ class.class_name }}</h5>
+                    <p class="text-muted mb-2">{{ class.description }}</p>
+                    
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="student-count text-primary">{{ class.current_students_count }}</div>
+                            <small class="text-muted">Sinh viên</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="h4 text-success">{{ "%.2f"|format(class.avg_gpa or 0) }}</div>
+                            <small class="text-muted">GPA TB</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="h4 text-info">{{ class.completed_courses_count }}</div>
+                            <small class="text-muted">Môn đã chấm</small>
+                        </div>
+                    </div>  
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-secondary">K{{ class.course }}</span>
+                        <span class="badge bg-{{ 'success' if class.status == 'active' else 'secondary' }}">
+                            {{ 'Đang học' if class.status == 'active' else 'Đã tốt nghiệp' }}
+                        </span>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-user-tie me-1"></i>
+                            GVCN: {{ class.teacher.user.full_name if class.teacher else 'Chưa phân công' }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- List View (Hidden by default) -->
+<div id="listView" style="display: none;">
+    <div class="card shadow">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-primary">
+                <i class="fas fa-list me-2"></i>Danh sách Lớp Học
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã lớp</th>
+                            <th>Tên lớp</th>
+                            <th>Khóa</th>
+                            <th>Khoa/Viện</th>
+                            <th>Số SV</th>
+                            <th>GPA TB</th>
+                            <th>GVCN</th>
+                            <th>Trạng thái</th>
+                            <th width="120">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in classes %}
+                        <tr>
+                            <td><strong class="text-primary">{{ class.class_code }}</strong></td>
+                            <td>{{ class.class_name }}</td>
+                            <td>K{{ class.course }}</td>
+                            <td>{{ class.faculty }}</td>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">{{ class.current_students_count_count }}</span>
+                            </td>
+                            <td>{{ "%.2f"|format(class.avg_gpa or 0) }}</td>
+                            <td>{{ class.teacher.user.full_name if class.teacher and class.teacher.user else '--' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if class.status == 'active' else 'secondary' }}">
+                                    {{ 'Đang học' if class.status == 'active' else 'Đã tốt nghiệp' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="viewClass({{ class.id }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="editClass({{ class.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-info" onclick="manageStudents({{ class.id }})">
+                                        <i class="fas fa-users"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Class Modal - UPDATED -->
+<div class="modal fade" id="addClassModal" tabindex="-1">
+    <div class="modal-dialog modal-xl"> <!-- Changed to modal-xl -->
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Thêm Lớp Học Mới
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_class') }}" id="addClassForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <!-- Basic Info Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mã lớp *</label>
+                                <input type="text" class="form-control" name="class_code" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tên lớp *</label>
+                                <input type="text" class="form-control" name="class_name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Khóa học *</label>
+                                <select class="form-select" name="course" required>
+                                    <option value="">Chọn khóa</option>
+                                    <option value="K2020">K2020</option>
+                                    <option value="K2021">K2021</option>
+                                    <option value="K2022">K2022</option>
+                                    <option value="K2023">K2023</option>
+                                    <option value="K2024">K2024</option>
+                                    <option value="K2025">K2025</option>
+                                    <option value="K2026">K2026</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Khoa/Viện *</label>
+                                <select class="form-select" name="faculty" required>
+                                    <option value="">Chọn khoa/viện</option>
+                                    <option value="cntt">Công nghệ thông tin</option>
+                                    <option value="csdl">Cơ sở dữ liệu</option>
+                                    <option value="nmhm">Nhập môn học máy</option>
+                                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                                    <option value="nn">Ngôn ngữ anh</option>
+                                    <option value="kt">Kế Toán</option>
+                                    <option value="qtkd">Quản trị kinh doanh</option>
+                                    <option value="dl">Du lịch</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Teacher and Capacity Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Giáo viên chủ nhiệm</label>
+                                <select class="form-select" name="teacher_id">
+                                    <option value="">Chọn giáo viên</option>
+                                    {% for teacher in teachers %}
+                                    <option value="{{ teacher.id }}">{{ teacher.full_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Số lượng SV tối đa</label>
+                                <input type="number" class="form-control" name="max_students" value="50" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Selection Section -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-user-graduate me-2"></i>Chọn sinh viên cho lớp
+                        </label>
+                        <div class="border rounded p-3 bg-light">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="studentSearch" 
+                                       placeholder="Tìm kiếm sinh viên theo mã, tên, email...">
+                            </div>
+                            <div class="table-responsive" style="max-height: 300px;">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllStudents">
+                                            </th>
+                                            <th>Mã SV</th>
+                                            <th>Họ tên</th>
+                                            <th>Email</th>
+                                            <th>Lớp hiện tại</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="availableStudents">
+                                        <!-- Students will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-2 text-muted">
+                                <small id="selectedCount">Đã chọn: 0 sinh viên</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Mô tả về lớp học..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Thêm Lớp</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Manage Students Modal -->
+<!-- THÊM VÀO manage_classes.html - sau modal hiện có -->
+
+<!-- Manage Students Modal - IMPROVED -->
+<div class="modal fade" id="manageStudentsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-graduate me-2"></i>Quản lý Sinh viên - <span id="manageClassName"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Class Info -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title">Thông tin lớp</h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Sỉ số hiện tại:</small>
+                                        <div id="currentStudentCount" class="fw-bold">0</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Sỉ số tối đa:</small>
+                                        <div id="maxStudentCount" class="fw-bold">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-success w-100 h-100" onclick="showAddStudentsForm()">
+                            <i class="fas fa-user-plus me-2"></i>Thêm Sinh viên
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Current Students Section -->
+                <div class="mb-4">
+                    <h6 class="text-primary">
+                        <i class="fas fa-users me-2"></i>Danh sách sinh viên trong lớp
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="classStudentsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">#</th>
+                                    <th>Mã SV</th>
+                                    <th>Họ tên</th>
+                                    <th>Email</th>
+                                    <th>GPA</th>
+                                    <th>Trạng thái</th>
+                                    <th width="100" class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="classStudentsBody">
+                                <!-- Students will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="text-center mt-3" id="noStudentsMessage" style="display: none;">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Lớp học chưa có sinh viên nào</p>
+                    </div>
+                </div>
+
+                <!-- Add Students Section (Hidden by default) -->
+                <div id="addStudentsSection" style="display: none;">
+                    <h6 class="text-success">
+                        <i class="fas fa-user-plus me-2"></i>Thêm sinh viên vào lớp
+                    </h6>
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="availableStudentSearch" 
+                                       placeholder="Tìm kiếm sinh viên...">
+                            </div>
+                            <div class="table-responsive" style="max-height: 300px;">
+                                <table class="table table-sm">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllAvailable">
+                                            </th>
+                                            <th>Mã SV</th>
+                                            <th>Họ tên</th>
+                                            <th>Email</th>
+                                            <th>Lớp hiện tại</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="availableStudentsList">
+                                        <!-- Available students will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <small class="text-muted" id="selectedStudentsCount">Đã chọn: 0 sinh viên</small>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-success btn-sm" onclick="addSelectedStudents()">
+                                    <i class="fas fa-plus me-2"></i>Thêm sinh viên đã chọn
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="hideAddStudentsForm()">
+                                    <i class="fas fa-times me-2"></i>Hủy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+{% block extra_js %}
+<script>
+
+// Load export libraries - VERSION ĐƠN GIẢN
+function loadExportLibraries() {
+    return new Promise((resolve) => {
+        // Kiểm tra nếu đã load rồi
+        if (typeof XLSX !== 'undefined' && typeof window.jspdf !== 'undefined') {
+            resolve();
+            return;
+        }
+        
+        let loadedCount = 0;
+        const totalLibs = 3;
+        
+        const checkLoaded = () => {
+            loadedCount++;
+            console.log(`Đã load ${loadedCount}/${totalLibs} thư viện`);
+            if (loadedCount === totalLibs) {
+                console.log('Tất cả thư viện đã sẵn sàng');
+                resolve();
+            }
+        };
+        
+        // Load XLSX
+        if (typeof XLSX === 'undefined') {
+            const script1 = document.createElement('script');
+            script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+            script1.onload = checkLoaded;
+            script1.onerror = checkLoaded;
+            document.head.appendChild(script1);
+        } else {
+            checkLoaded();
+        }
+        
+        // Load jsPDF
+        if (typeof window.jspdf === 'undefined') {
+            const script2 = document.createElement('script');
+            script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script2.onload = checkLoaded;
+            script2.onerror = checkLoaded;
+            document.head.appendChild(script2);
+        } else {
+            checkLoaded();
+        }
+        
+        // Load AutoTable
+        const script3 = document.createElement('script');
+        script3.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js';
+        script3.onload = checkLoaded;
+        script3.onerror = checkLoaded;
+        document.head.appendChild(script3);
+    });
+}
+
+// Sử dụng async/await cho export functions
+async function exportToPDF(type) {
+    try {
+        console.log('Đang tải thư viện...');
+        await loadExportLibraries();
+        console.log('Thư viện đã sẵn sàng');
+        
+        // Gọi hàm export gốc
+        exportToPDFOriginal(type);
+    } catch (error) {
+        console.error('Lỗi khi tải thư viện:', error);
+        showAlert('Lỗi khi tải thư viện export: ' + error.message, 'error');
+    }
+}
+
+
+
+// Gọi hàm load thư viện
+loadExportLibraries();
+
+
+
+function exportToExcel(type) {
+    try {
+        // Tạo workbook
+        const wb = XLSX.utils.book_new();
+        
+        if (type === 'classes') {
+            // Chuẩn bị dữ liệu cho classes
+            const classesData = [];
+            
+            // Lấy dữ liệu từ grid view hoặc list view
+            document.querySelectorAll('.class-item').forEach(item => {
+                const classObj = {
+                    'Mã lớp': item.querySelector('.card-title').textContent.trim(),
+                    'Tên lớp': item.querySelector('.text-muted').textContent.trim(),
+                    'Khóa': item.querySelector('.badge.bg-secondary').textContent.trim(),
+                    'Số SV': item.querySelector('.student-count').textContent.trim(),
+                    'GPA TB': item.querySelector('.h4.text-success').textContent.trim(),
+                    'Trạng thái': item.querySelector('.badge.bg-success, .badge.bg-secondary').textContent.trim(),
+                    'GVCN': item.querySelector('small.text-muted').textContent.replace('GVCN:', '').trim()
+                };
+                classesData.push(classObj);
+            });
+
+            const ws = XLSX.utils.json_to_sheet(classesData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Danh sách lớp học');
+        }
+
+        // Xuất file
+        XLSX.writeFile(wb, `danh_sach_lop_hoc_${new Date().toISOString().split('T')[0]}.xlsx`);
+        
+        showAlert('Export Excel thành công!', 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Lỗi khi export Excel', 'error');
+    }
+}
+
+// Export to PDF - VERSION ĐÃ SỬA
+function exportToPDF(type) {
+    try {
+        console.log('=== BẮT ĐẦU EXPORT PDF ===');
+        
+        // Kiểm tra thư viện
+        if (typeof window.jspdf === 'undefined') {
+            throw new Error('Thư viện jsPDF chưa được load. Vui lòng tải lại trang.');
+        }
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Tiêu đề
+        doc.setFontSize(16);
+        doc.text('DANH SÁCH LỚP HỌC', 105, 15, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 105, 22, { align: 'center' });
+        
+        // Header table - SỬA HEADER CHO PHÙ HỢP
+        const headers = [['STT', 'Mã lớp', 'Tên lớp', 'Khóa', 'Số SV', 'Trạng thái', 'GVCN']];
+        const data = [];
+        
+        // Lấy dữ liệu từ CẢ grid view và list view
+        let classItems = [];
+        
+        // Ưu tiên lấy từ view đang active
+        const gridView = document.getElementById('gridView');
+        const listView = document.getElementById('listView');
+        
+        if (gridView.style.display !== 'none') {
+            // Đang ở grid view
+            classItems = document.querySelectorAll('.class-item');
+            console.log('Đang sử dụng Grid View, tìm thấy:', classItems.length, 'lớp');
+        } else {
+            // Đang ở list view - lấy từ table
+            const tableRows = document.querySelectorAll('#listView tbody tr');
+            console.log('Đang sử dụng List View, tìm thấy:', tableRows.length, 'lớp');
+            
+            tableRows.forEach((row, index) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 8) {
+                    const rowData = [
+                        (index + 1).toString(),
+                        cells[0].textContent.trim(),
+                        cells[1].textContent.trim(),
+                        cells[2].textContent.trim(),
+                        cells[4].textContent.trim(),
+                        cells[7].textContent.trim(),
+                        cells[6].textContent.trim()
+                    ];
+                    data.push(rowData);
+                }
+            });
+        }
+        
+        // Nếu đang ở grid view, xử lý grid data
+        if (gridView.style.display !== 'none') {
+            classItems.forEach((item, index) => {
+                try {
+                    // SỬA SELECTOR CHO ĐÚNG VỚI HTML STRUCTURE
+                    const classCode = item.querySelector('.card-title')?.textContent?.trim() || 'N/A';
+                    const className = item.querySelector('.text-muted')?.textContent?.trim() || 'N/A';
+                    const course = item.querySelector('.badge.bg-secondary')?.textContent?.trim() || 'N/A';
+                    const studentCount = item.querySelector('.student-count')?.textContent?.trim() || '0';
+                    const status = item.querySelector('.badge.bg-success, .badge.bg-secondary')?.textContent?.trim() || 'N/A';
+                    const teacher = item.querySelector('small.text-muted')?.textContent?.replace('GVCN:', '')?.trim() || 'Chưa phân công';
+                    
+                    const row = [
+                        (index + 1).toString(),
+                        classCode,
+                        className,
+                        course,
+                        studentCount,
+                        status,
+                        teacher
+                    ];
+                    console.log(`Lớp ${index + 1}:`, row);
+                    data.push(row);
+                } catch (itemError) {
+                    console.error('Lỗi khi xử lý lớp', index, itemError);
+                }
+            });
+        }
+        
+        console.log('Tổng số dữ liệu:', data.length);
+        
+        if (data.length === 0) {
+            // Thử lấy dữ liệu mẫu để test
+            console.log('Không có dữ liệu, sử dụng dữ liệu mẫu để test');
+            data.push(
+                ['1', 'CT101', 'Công nghệ thông tin 1', 'K2024', '30', 'Đang học', 'Nguyễn Văn A'],
+                ['2', 'CT102', 'Công nghệ thông tin 2', 'K2024', '28', 'Đang học', 'Trần Thị B']
+            );
+        }
+        
+        // Tạo bảng với error handling
+        try {
+            doc.autoTable({
+                head: headers,
+                body: data,
+                startY: 35,
+                styles: { 
+                    fontSize: 8,
+                    cellPadding: 2
+                },
+                headStyles: { 
+                    fillColor: [66, 139, 202],
+                    textColor: 255,
+                    fontStyle: 'bold'
+                },
+                margin: { top: 35 },
+                tableWidth: 'wrap'
+            });
+        } catch (autoTableError) {
+            console.error('Lỗi autoTable:', autoTableError);
+            // Fallback: chỉ in tiêu đề nếu autoTable lỗi
+            doc.text('Dữ liệu lớp học (autoTable lỗi):', 10, 40);
+            data.forEach((row, index) => {
+                doc.text(row.join(' - '), 10, 50 + (index * 10));
+            });
+        }
+        
+        // Lưu file
+        const filename = `danh_sach_lop_hoc_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(filename);
+        
+        console.log('=== PDF EXPORT THÀNH CÔNG ===');
+        showAlert('Export PDF thành công!', 'success');
+        
+    } catch (error) {
+        console.error('=== PDF EXPORT LỖI ===', error);
+        showAlert('Lỗi khi export PDF: ' + error.message, 'error');
+    }
+}
+// Hàm hiển thị thông báo
+function showAlert(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+    
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// View Toggle
+document.querySelectorAll('.view-toggle').forEach(button => {
+    button.addEventListener('click', function() {
+        // Update active state
+        document.querySelectorAll('.view-toggle').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.classList.add('active');
+        
+        // Show/hide views
+        const view = this.dataset.view;
+        if (view === 'grid') {
+            document.getElementById('gridView').style.display = 'block';
+            document.getElementById('listView').style.display = 'none';
+        } else {
+            document.getElementById('gridView').style.display = 'none';
+            document.getElementById('listView').style.display = 'block';
+        }
+    });
+});
+
+function resetFilters() {
+    document.getElementById('courseFilter').value = '';
+    document.getElementById('facultyFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterClasses();
+}
+
+function filterClasses() {
+    const courseFilter = document.getElementById('courseFilter').value;
+    const facultyFilter = document.getElementById('facultyFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const classItems = document.querySelectorAll('.class-item');
+    
+    classItems.forEach(item => {
+        const course = item.dataset.course;
+        const faculty = item.dataset.faculty;
+        const status = item.dataset.status;
+        
+        const matchesCourse = !courseFilter || course === courseFilter;
+        const matchesFaculty = !facultyFilter || faculty === facultyFilter;
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        item.style.display = (matchesCourse && matchesFaculty && matchesStatus) ? 'block' : 'none';
+    });
+}
+
+function viewClass(classId) {
+    alert('Xem chi tiết lớp: ' + classId);
+    // Implement view class details
+}
+
+
+
+function manageStudents(classId) {
+    alert('Quản lý sinh viên lớp: ' + classId);
+    // Implement manage students
+}
+
+
+// Thêm vào phần extra_js
+async function editClass(classId) {
+    try {
+        const response = await fetch(`/admin/classes/edit/${classId}`);
+        if (response.ok) {
+            const classData = await response.json();
+            
+            // Điền dữ liệu vào form
+            document.getElementById('edit_class_id').value = classId;
+            document.getElementById('edit_class_code').value = classData.class_code;
+            document.getElementById('edit_class_name').value = classData.class_name;
+            document.getElementById('edit_course').value = classData.course;
+            document.getElementById('edit_faculty').value = classData.faculty;
+            document.getElementById('edit_teacher_id').value = classData.teacher_id;
+            document.getElementById('edit_max_students').value = classData.max_students;
+            document.getElementById('edit_description').value = classData.description || '';
+            
+            // Hiển thị modal
+            const editModal = new bootstrap.Modal(document.getElementById('editClassModal'));
+            editModal.show();
+        } else {
+            alert('Lỗi khi tải thông tin lớp học');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi tải thông tin lớp học');
+    }
+}
+
+async function deleteClass(classId, className) {
+    if (!confirm(`Bạn có chắc muốn xóa lớp "${className}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/admin/classes/delete/${classId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
+            }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            location.reload(); // Reload trang để cập nhật danh sách
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi xóa lớp học');
+    }
+}
+
+// Xử lý form sửa lớp học
+document.getElementById('editClassForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const classId = document.getElementById('edit_class_id').value;
+    
+    try {
+        const response = await fetch(`/admin/classes/edit/${classId}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi cập nhật lớp học');
+    }
+});
+
+// Quản lý sinh viên trong lớp
+let currentClassId = null;
+
+async function manageStudents(classId) {
+    currentClassId = classId;
+    try {
+        // Hiển thị loading
+        document.getElementById('classStudentsBody').innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Đang tải danh sách sinh viên...</p>
+                </td>
+            </tr>
+        `;
+        
+        // Load thông tin lớp và sinh viên
+        const [classResponse, studentsResponse] = await Promise.all([
+            fetch(`/api/class/${classId}/info`),
+            fetch(`/api/class/${classId}/students`)
+        ]);
+        
+        const classResult = await classResponse.json();
+        const studentsResult = await studentsResponse.json();
+        
+        if (studentsResult.success && classResult.success) {
+            document.getElementById('manageClassName').textContent = 
+                `${classResult.class_name} (${classResult.class_code})`;
+            
+            // Cập nhật thông tin lớp
+            document.getElementById('currentStudentCount').textContent = classResult.current_students;
+            document.getElementById('maxStudentCount').textContent = classResult.max_students;
+            
+            displayClassStudents(studentsResult.students);
+            
+            const modal = new bootstrap.Modal(document.getElementById('manageStudentsModal'));
+            modal.show();
+        } else {
+            alert('Lỗi khi tải thông tin: ' + (studentsResult.message || classResult.message));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi tải thông tin lớp học');
+    }
+}
+
+// HIỂN THỊ DANH SÁCH SINH VIÊN
+function displayClassStudents(students) {
+    const tbody = document.getElementById('classStudentsBody');
+    const noStudentsMsg = document.getElementById('noStudentsMessage');
+    
+    if (students && students.length > 0) {
+        noStudentsMsg.style.display = 'none';
+        
+        let html = '';
+        students.forEach((student, index) => {
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${student.student_id}</strong></td>
+                    <td>${student.full_name}</td>
+                    <td>${student.email}</td>
+                    <td>
+                        <span class="badge ${student.gpa >= 3.6 ? 'bg-success' : student.gpa >= 2.5 ? 'bg-warning' : 'bg-danger'}">
+                            ${student.gpa ? student.gpa.toFixed(2) : 'N/A'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-${student.status === 'active' ? 'success' : 'secondary'}">
+                            ${student.status === 'active' ? 'Đang học' : 'Ngừng học'}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-outline-danger btn-sm" 
+                                onclick="removeStudentFromClass(${currentClassId}, ${student.id}, '${student.full_name}')"
+                                title="Xóa khỏi lớp">
+                            <i class="fas fa-user-times"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    } else {
+        noStudentsMsg.style.display = 'block';
+        tbody.innerHTML = '';
+    }
+}
+
+// HIỂN THỊ FORM THÊM SINH VIÊN
+async function showAddStudentsForm() {
+    document.getElementById('addStudentsSection').style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/students/available');
+        const result = await response.json();
+        
+        if (result.success) {
+            displayAvailableStudents(result.students);
+        }
+    } catch (error) {
+        console.error('Error loading available students:', error);
+    }
+}
+
+// ẨN FORM THÊM SINH VIÊN
+function hideAddStudentsForm() {
+    document.getElementById('addStudentsSection').style.display = 'none';
+}
+
+// HIỂN THỊ SINH VIÊN CÓ THỂ THÊM
+function displayAvailableStudents(students) {
+    const tbody = document.getElementById('availableStudentsList');
+    
+    let html = '';
+    students.forEach(student => {
+        const hasClasses = student.current_classes && student.current_classes.length > 0;
+        const classList = hasClasses ? student.current_classes.join(', ') : 'Chưa có lớp';
+        
+        html += `
+            <tr>
+                <td>
+                    <input type="checkbox" class="available-student-checkbox" value="${student.id}">
+                </td>
+                <td>${student.student_id}</td>
+                <td>${student.full_name}</td>
+                <td>${student.email}</td>
+                <td>${classList}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+    
+    // Thêm event listeners
+    document.getElementById('selectAllAvailable').addEventListener('change', function() {
+        document.querySelectorAll('.available-student-checkbox').forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSelectedStudentsCount();
+    });
+    
+    document.querySelectorAll('.available-student-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedStudentsCount);
+    });
+    
+    // Tìm kiếm
+    document.getElementById('availableStudentSearch').addEventListener('input', function() {
+        const searchText = this.value.toLowerCase();
+        document.querySelectorAll('#availableStudentsList tr').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchText) ? '' : 'none';
+        });
+    });
+}
+
+
+// Xóa sinh viên khỏi lớp
+async function removeStudentFromClass(classId, studentId, studentName) {
+    if (!confirm(`Bạn có chắc muốn xóa sinh viên "${studentName}" khỏi lớp này?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/class/${classId}/students/${studentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            // Reload danh sách sinh viên
+            manageStudents(classId);
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi xóa sinh viên');
+    }
+}
+
+// Tải danh sách sinh viên cho form thêm lớp
+async function loadAvailableStudents() {
+    try {
+        const response = await fetch('/api/students/available');
+        const result = await response.json();
+        
+        if (result.success) {
+            let html = '';
+            result.students.forEach(student => {
+                const hasClasses = student.current_classes && student.current_classes.length > 0;
+                const classList = hasClasses ? student.current_classes.join(', ') : 'Chưa có lớp';
+
+                html += `
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="student-checkbox" name="student_ids" value="${student.id}">
+                        </td>
+                        <td>${student.student_id}</td>
+                        <td>${student.full_name}</td>
+                        <td>${student.email}</td>
+                        <td>
+                            ${classList}
+                            ${hasClasses ? `<br><small class="text-info">(${student.class_count} lớp)</small>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            document.getElementById('availableStudents').innerHTML = html;
+            
+            // Thêm event listeners cho checkbox
+            document.getElementById('selectAllStudents').addEventListener('change', function() {
+                document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateSelectedCount();
+            });
+            
+            document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectedCount);
+            });
+            
+            // Tìm kiếm sinh viên
+            document.getElementById('studentSearch').addEventListener('input', function() {
+                const searchText = this.value.toLowerCase();
+                document.querySelectorAll('#availableStudents tr').forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchText) ? '' : 'none';
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Error loading students:', error);
+    }
+}
+
+// Cập nhật số lượng sinh viên đã chọn
+function updateSelectedCount() {
+    const selectedCount = document.querySelectorAll('.student-checkbox:checked').length;
+    document.getElementById('selectedCount').textContent = `Đã chọn: ${selectedCount} sinh viên`;
+}
+
+// Load students khi modal thêm lớp được mở
+document.getElementById('addClassModal').addEventListener('show.bs.modal', function() {
+    loadAvailableStudents();
+});
+
+// Xử lý form thêm lớp với sinh viên
+document.getElementById('addClassForm').addEventListener('submit', function(e) {
+    // Form sẽ được xử lý bình thường, student_ids sẽ được gửi kèm
+});
+
+// Thêm vào phần extra_js
+function exportClasses() {
+    alert('Export danh sách lớp học');
+    // Implement export functionality
+}
+
+function refreshData() {
+    location.reload();
+}
+
+async function addSelectedStudents() {
+    const selectedStudents = Array.from(document.querySelectorAll('.available-student-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selectedStudents.length === 0) {
+        alert('Vui lòng chọn ít nhất một sinh viên');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/class/${currentClassId}/add-students`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
+            },
+            body: JSON.stringify({
+                student_ids: selectedStudents
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            // Reload danh sách sinh viên
+            manageStudents(currentClassId);
+            hideAddStudentsForm();
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi thêm sinh viên');
+    }
+}
+// Event listeners for filters
+document.getElementById('courseFilter').addEventListener('change', filterClasses);
+document.getElementById('facultyFilter').addEventListener('change', filterClasses);
+document.getElementById('statusFilter').addEventListener('change', filterClasses);
+</script>
+{% endblock %}

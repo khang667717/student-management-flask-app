@@ -1,0 +1,996 @@
+{% extends "layout.html" %}
+
+{% block title %}Nhập Điểm - Teacher{% endblock %}
+
+{% block extra_css %}
+<style>
+    .score-input {
+        width: 80px;
+        text-align: center;
+    }
+    
+    .score-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .score-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .student-avatar-sm {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .component-weight {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .final-score {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .grading-scale {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .scale-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .scale-item:last-child {
+        border-bottom: none;
+    }
+    
+    .auto-calculate {
+        cursor: pointer;
+    }
+    .score-input {
+    width: 80px;
+    text-align: center;
+}
+
+.notes-input {
+    font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .score-input {
+        width: 60px;
+    }
+    
+    .student-avatar-sm {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+
+/* Hiệu ứng loading */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('teacher_class_list') }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-2"></i>Quay lại DS Lớp
+        </a>
+        
+        <!-- THÊM NÚT XEM DS SINH VIÊN -->
+        <button class="btn btn-outline-primary me-2" 
+                onclick="viewStudentList()"
+                id="viewStudentListBtn">
+            <i class="fas fa-user-graduate me-2"></i>Xem DS Sinh Viên
+        </button>
+        
+        <h1 class="h3 mb-0 text-primary d-inline-block">
+            <i class="fas fa-edit me-2"></i>Nhập Điểm
+        </h1>
+    </div>
+
+    <div>
+        <button class="btn btn-success me-2" onclick="saveAllScores()">
+            <i class="fas fa-save me-2"></i>Lưu Tất Cả
+        </button>
+        <button class="btn btn-primary" onclick="calculateFinalScores()">
+            <i class="fas fa-calculator me-2"></i>Tính Điểm Tổng
+        </button>
+    </div>
+</div>
+
+
+<!-- Class Selection and Grading Information -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card score-card shadow">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="text-primary mb-2">Chọn lớp để nhập điểm</h5>
+                        <select class="form-select" id="classSelect" onchange="loadCourseStudents(this.value)">
+                            <option value="">-- Chọn lớp --</option>
+                            {% for class in classes %}
+                            <option value="{{ class.id }}">
+                                {{ class.class_name }} ({{ class.class_code }}) - {{ class.current_students_count }} SV
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="grading-scale">
+                            <h6 class="text-primary mb-3">Thang điểm</h6>
+                            <div class="scale-item">
+                                <span>Xuất sắc</span>
+                                <span class="text-success">8.5 - 10</span>
+                            </div>
+                            <div class="scale-item">
+                                <span>Giỏi</span>
+                                <span class="text-info">7.0 - 8.4</span>
+                            </div>
+                            <div class="scale-item">
+                                <span>Khá</span>
+                                <span class="text-warning">5.5 - 6.9</span>
+                            </div>
+                            <div class="scale-item">
+                                <span>Trung bình</span>
+                                <span class="text-secondary">4.0 - 5.4</span>
+                            </div>
+                            <div class="scale-item">
+                                <span>Yếu/Kém</span>
+                                <span class="text-danger">Dưới 4.0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card score-card bg-light border-0">
+            <div class="card-body text-center">
+                <h4 class="text-primary mb-2" id="totalStudents">0</h4>
+                <p class="text-muted mb-0">Sinh viên trong lớp</p>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <h6 class="text-success mb-0" id="gradedCount">0</h6>
+                        <small class="text-muted">Đã chấm</small>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-warning mb-0" id="pendingCount">0</h6>
+                        <small class="text-muted">Chờ chấm</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grading Components -->
+<div class="card score-card shadow mb-4" id="gradingComponentsCard" style="display: none;">
+    <div class="card-header bg-white">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-cogs me-2"></i>Thành Phần Điểm
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row" id="gradingComponents">
+            <!-- Grading components will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Scores Table -->
+<div class="card score-card shadow">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-table me-2"></i>Bảng Điểm
+        </h5>
+        <div>
+            <button class="btn btn-sm btn-outline-primary me-2" onclick="importScores()">
+                <i class="fas fa-file-import me-1"></i>Import Excel
+            </button>
+            <button class="btn btn-sm btn-outline-success" onclick="exportScores()">
+                <i class="fas fa-file-export me-1"></i>Export Excel
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="scoresTable">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">STT</th>
+                        <th>Sinh viên</th>
+                        <th>Mã SV</th>
+                        <th>Email</th>
+                        <th class="text-center">Điểm QT<br><small>40%</small></th>
+                        <th class="text-center">Điểm thi<br><small>60%</small></th>
+                        <th class="text-center">Điểm tổng</th>
+                        <th class="text-center">Xếp loại<br><small>(DC)</small></th>
+                        <th>Ghi chú</th>
+                        <th width="100" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="scoresTableBody">
+                    <!-- Scores data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Import Scores Modal -->
+<!-- Simplified Export Section -->
+<div class="modal fade" id="exportScoresModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-export me-2"></i>Xuất Bảng Điểm
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p>Xuất bảng điểm hiện tại ra file Excel?</p>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    File Excel sẽ bao gồm bảng điểm chi tiết và thống kê.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" onclick="confirmExportScores()">
+                    <i class="fas fa-download me-2"></i>Xuất Excel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Score Statistics Modal -->
+<div class="modal fade" id="scoreStatisticsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-chart-bar me-2"></i>Thống Kê Điểm
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row text-center mb-4">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-primary mb-0" id="statAvgScore">0.0</h4>
+                            <small class="text-muted">Điểm TB</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-success mb-0" id="statMaxScore">0.0</h4>
+                            <small class="text-muted">Điểm cao nhất</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-warning mb-0" id="statMinScore">0.0</h4>
+                            <small class="text-muted">Điểm thấp nhất</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-info mb-0" id="statPassRate">0%</h4>
+                            <small class="text-muted">Tỷ lệ đỗ</small>
+                        </div>
+                    </div>
+                </div>
+                <canvas id="scoreDistributionChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let currentCourseId = null;
+let currentClassId = null;
+let hasUnsavedChanges = false;
+
+
+ // hàm xử lý lỗi chung
+ function handleApiError(error, defaultMessage = 'Lỗi hệ thống') {
+    console.error('API Error:', error);
+    
+    if (error.response) {
+        // Lỗi từ server
+        try {
+            const result = error.response.json();
+            alert(result.message || defaultMessage);
+        } catch {
+            alert(`Lỗi ${error.response.status}: ${error.response.statusText}`);
+        }
+    } else if (error.request) {
+        // Không nhận được phản hồi
+        alert('Lỗi kết nối: Không thể kết nối đến server');
+    } else {
+        // Lỗi khác
+        alert(defaultMessage + ': ' + error.message);
+    }
+}
+
+function showExportModal() {
+    if (!currentCourseId) {
+        alert('Vui lòng chọn khóa học trước');
+        return;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('exportScoresModal'));
+    modal.show();
+}
+
+function confirmExportScores() {
+    exportScores();
+    const modal = bootstrap.Modal.getInstance(document.getElementById('exportScoresModal'));
+    modal.hide();
+}
+
+// Cập nhật sự kiện click cho nút export
+document.querySelector('button[onclick="exportScores()"]').setAttribute('onclick', 'showExportModal()');
+
+
+// Hàm hiển thị loading
+function showLoading(message = 'Đang tải dữ liệu...') {
+    document.getElementById('scoresTableBody').innerHTML = `
+        <tr>
+            <td colspan="10" class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">${message}</p>
+            </td>
+        </tr>
+    `;
+}
+
+// Hàm hiển thị thông báo không có dữ liệu
+function showNoDataMessage(message) {
+    document.getElementById('scoresTableBody').innerHTML = `
+        <tr>
+            <td colspan="10" class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-circle fa-2x mb-3"></i>
+                <p>${message}</p>
+            </td>
+        </tr>
+    `;
+}
+
+// Tải danh sách sinh viên khi chọn lớp
+async function loadCourseStudents(classId) {
+    if (!classId) {
+        document.getElementById('scoresTableBody').innerHTML = '';
+        document.getElementById('gradingComponentsCard').style.display = 'none';
+        return;
+    }
+    
+    currentClassId = classId;
+    
+    try {
+        // Hiển thị loading
+        showLoading('Đang tải danh sách khóa học...');
+        
+        const response = await fetch(`/api/teacher/classes/${classId}/courses`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.courses.length > 0) {
+            if (result.courses.length === 1) {
+                await loadStudentsForCourse(result.courses[0].id, classId);
+            } else {
+                showCourseSelection(result.courses, classId);
+            }
+        } else {
+            showNoDataMessage('Không tìm thấy khóa học nào cho lớp này');
+        }
+        
+    } catch (error) {
+        handleApiError(error, 'Lỗi khi tải danh sách khóa học');
+    }
+}
+// Hiển thị lựa chọn khóa học
+function showCourseSelection(courses, classId) {
+    const tableBody = document.getElementById('scoresTableBody');
+    
+    let html = `
+        <tr>
+            <td colspan="10" class="text-center py-4">
+                <div class="alert alert-info">
+                    <h6>Chọn khóa học để nhập điểm cho lớp:</h6>
+                    <select class="form-select mt-3" id="courseSelect" style="max-width: 400px; margin: 0 auto;">
+                        <option value="">-- Chọn khóa học --</option>
+    `;
+    
+    courses.forEach(course => {
+        html += `<option value="${course.id}">
+                    ${course.subject_name} (${course.course_code}) 
+                    - GV: ${course.teacher_name}
+                    - ${course.student_count} SV
+                </option>`;
+    });
+    
+    html += `
+                    </select>
+                    <button class="btn btn-primary mt-3" onclick="loadSelectedCourse()">
+                        <i class="fas fa-check me-2"></i>Xác nhận
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+    
+    tableBody.innerHTML = html;
+}
+
+// Tải khóa học đã chọn
+async function loadSelectedCourse() {
+    const courseSelect = document.getElementById('courseSelect');
+    const courseId = courseSelect.value;
+    
+    if (!courseId) {
+        alert('Vui lòng chọn khóa học');
+        return;
+    }
+    
+    await loadStudentsForCourse(courseId, currentClassId);
+}
+
+// Tải sinh viên cho khóa học - ĐÃ SỬA
+async function loadStudentsForCourse(courseId, classId) {
+    try {
+        showLoading('Đang tải danh sách sinh viên...');
+        
+        const response = await fetch(`/api/teacher/courses/${courseId}/students`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentCourseId = courseId;
+            displayStudents(result.students, result.course);
+            updateStatistics(result.students);
+            document.getElementById('gradingComponentsCard').style.display = 'block';
+            hasUnsavedChanges = false;
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        handleApiError(error, 'Lỗi khi tải danh sách sinh viên');
+    }
+}
+// Hiển thị danh sách sinh viên - ĐÃ SỬA HIỂN THỊ
+function displayStudents(students, course) {
+    const tableBody = document.getElementById('scoresTableBody');
+    
+    if (students.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center text-muted py-4">
+                    <i class="fas fa-users fa-2x mb-3"></i>
+                    <p>Không có sinh viên nào trong khóa học này</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    students.forEach((student, index) => {
+        // Tính toán điểm tổng và xếp loại ngay khi hiển thị
+        const processScore = student.process_score || 0;
+        const examScore = student.exam_score || 0;
+        let finalScore = null;
+        let gradeInfo = { letterGrade: 'N/A', gradePoint: 0, text: 'Chưa có điểm' };
+        
+        if (processScore !== null && processScore !== '' && examScore !== null && examScore !== '') {
+            finalScore = (processScore * 0.4) + (examScore * 0.6);
+            gradeInfo = calculateDetailedGrade(finalScore);
+        }
+        
+        html += `
+            <tr data-student="${student.id}">
+                <td>${index + 1}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="${student.avatar || '{{ url_for("static", filename="images/default-avatar.png") }}'}" 
+                             alt="Avatar" class="student-avatar-sm me-2">
+                        <div>
+                            <div class="fw-bold">${student.full_name}</div>
+                            <small class="text-muted">${student.class_name}</small>
+                        </div>
+                    </div>
+                </td>
+                <td><strong class="text-primary">${student.student_id}</strong></td>
+                <td>${student.email}</td>
+                <td class="text-center">
+                    <input type="number" 
+                           class="form-control form-control-sm score-input process-score"
+                           value="${student.process_score || ''}" 
+                           min="0" max="10" step="0.1"
+                           data-student="${student.id}"
+                           placeholder="0.0"
+                           onchange="handleScoreChange(${student.id})">
+                </td>
+                <td class="text-center">
+                    <input type="number" 
+                           class="form-control form-control-sm score-input exam-score"
+                           value="${student.exam_score || ''}" 
+                           min="0" max="10" step="0.1"
+                           data-student="${student.id}"
+                           placeholder="0.0"
+                           onchange="handleScoreChange(${student.id})">
+                </td>
+                <td class="text-center final-score ${finalScore ? `text-${getGradeColor(gradeInfo.letterGrade)}` : ''}">
+                    ${finalScore ? finalScore.toFixed(1) : ''}
+                </td>
+                <td class="text-center">
+                    ${finalScore !== null ? `
+                        <div class="d-flex flex-column align-items-center">
+                            <span class="badge bg-${getGradeColor(gradeInfo.letterGrade)} mb-1">
+                                ${gradeInfo.letterGrade}
+                            </span>
+                            <small class="text-muted">${gradeInfo.gradePoint.toFixed(1)}/4.0</small>
+                        </div>
+                    ` : `
+                        <span class="badge bg-secondary">N/A</span>
+                    `}
+                </td>
+                <td>
+                    <input type="text" 
+                           class="form-control form-control-sm notes-input"
+                           value="${student.notes || ''}" 
+                           data-student="${student.id}"
+                           placeholder="Ghi chú..."
+                           onchange="markAsChanged()">
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-primary me-1" 
+                            onclick="calculateStudentScore(${student.id})"
+                            title="Tính điểm">
+                        <i class="fas fa-calculator"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" 
+                            onclick="showStudentDetail(${student.id})"
+                            title="Chi tiết">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = html;
+}
+
+// Xử lý khi điểm thay đổi
+function handleScoreChange(studentId) {
+    markAsChanged();
+    calculateStudentScore(studentId);
+}
+
+// Đánh dấu có thay đổi
+function markAsChanged() {
+    hasUnsavedChanges = true;
+    document.title = document.title.replace('⚡ ', '') + '⚡ - Chưa lưu';
+}
+
+// HÀM SỬA LỖI - Thay thế hàm cũ
+function calculateDetailedGrade(score) {
+    if (score === null || score === undefined || score === '' || isNaN(score)) {
+        return { letterGrade: 'N/A', gradePoint: 0, text: 'Chưa có điểm' };
+    }
+    
+    const numericScore = parseFloat(score);
+    
+    if (numericScore >= 9.0) return { letterGrade: 'A+', gradePoint: 4.0, text: 'Xuất sắc' };
+    if (numericScore >= 8.5) return { letterGrade: 'A', gradePoint: 4.0, text: 'Giỏi' };
+    if (numericScore >= 8.0) return { letterGrade: 'B+', gradePoint: 3.5, text: 'Khá giỏi' };
+    if (numericScore >= 7.0) return { letterGrade: 'B', gradePoint: 3.0, text: 'Khá' };
+    if (numericScore >= 6.5) return { letterGrade: 'C+', gradePoint: 2.5, text: 'Trung bình khá' };
+    if (numericScore >= 5.5) return { letterGrade: 'C', gradePoint: 2.0, text: 'Trung bình' };
+    if (numericScore >= 5.0) return { letterGrade: 'D+', gradePoint: 1.5, text: 'Trung bình yếu' };
+    if (numericScore >= 4.0) return { letterGrade: 'D', gradePoint: 1.0, text: 'Yếu' };
+    
+    return { letterGrade: 'F', gradePoint: 0.0, text: 'Kém' };
+}
+
+// Tính điểm cho một sinh viên - ĐÃ SỬA HIỂN THỊ
+
+function updateStatisticsAfterChange() {
+    const rows = document.querySelectorAll('#scoresTableBody tr[data-student]');
+    let gradedCount = 0;
+    let totalStudents = rows.length;
+    
+    rows.forEach(row => {
+        const finalScore = row.querySelector('.final-score').textContent;
+        if (finalScore && finalScore.trim() !== '') {
+            gradedCount++;
+        }
+    });
+    
+    document.getElementById('totalStudents').textContent = totalStudents;
+    document.getElementById('gradedCount').textContent = gradedCount;
+    document.getElementById('pendingCount').textContent = totalStudents - gradedCount;
+}
+
+
+function calculateStudentScore(studentId) {
+    const row = document.querySelector(`tr[data-student="${studentId}"]`);
+    if (!row) return;
+    
+    const processScoreInput = row.querySelector('.process-score');
+    const examScoreInput = row.querySelector('.exam-score');
+    const finalScoreCell = row.querySelector('.final-score');
+    const gradeCell = row.querySelector('td:nth-child(8)'); // Cột xếp loại
+    
+    const processScore = parseFloat(processScoreInput.value) || 0;
+    const examScore = parseFloat(examScoreInput.value) || 0;
+    
+    let finalScore = null;
+    let gradeInfo = { letterGrade: 'N/A', gradePoint: 0, text: 'Chưa có điểm' };
+    
+    // Validate điểm
+    validateScoreInput(processScoreInput);
+    validateScoreInput(examScoreInput);
+    
+    if (processScore > 0 && examScore > 0) {
+        // Tính điểm tổng (40% QT + 60% Thi)
+        finalScore = (processScore * 0.4) + (examScore * 0.6);
+        gradeInfo = calculateDetailedGrade(finalScore);
+        
+        // Cập nhật điểm tổng
+        finalScoreCell.textContent = finalScore.toFixed(1);
+        finalScoreCell.className = `text-center final-score text-${getGradeColor(gradeInfo.letterGrade)}`;
+        
+        // Cập nhật xếp loại và điểm chữ - SỬA LẠI HIỂN THỊ
+        gradeCell.innerHTML = `
+            <div class="d-flex flex-column align-items-center">
+                <span class="badge bg-${getGradeColor(gradeInfo.letterGrade)} mb-1">
+                    ${gradeInfo.letterGrade}
+                </span>
+                <small class="text-muted">${gradeInfo.gradePoint.toFixed(1)}/4.0</small>
+            </div>
+        `;
+    } else {
+        // Reset nếu không đủ điểm
+        finalScoreCell.textContent = '';
+        finalScoreCell.className = 'text-center final-score';
+        gradeCell.innerHTML = `
+            <span class="badge bg-secondary">N/A</span>
+        `;
+    }
+    updateStatisticsAfterChange();
+
+}
+
+// Validate điểm nhập vào
+function validateScoreInput(input) {
+    const score = parseFloat(input.value);
+    
+    if (input.value === '') {
+        input.classList.remove('is-invalid', 'is-warning');
+        return true;
+    }
+    
+    if (isNaN(score) || score < 0 || score > 10) {
+        input.classList.add('is-invalid');
+        input.classList.remove('is-warning');
+        return false;
+    }
+    
+    if (score > 9.5) {
+        input.classList.add('is-warning');
+        input.classList.remove('is-invalid');
+    } else {
+        input.classList.remove('is-invalid', 'is-warning');
+    }
+    
+    return true;
+}
+
+// Lấy màu cho xếp loại
+function getGradeColor(grade) {
+    const colorMap = {
+        'A+': 'success',
+        'A': 'success',
+        'B+': 'info', 
+        'B': 'info',
+        'C+': 'warning',
+        'C': 'warning',
+        'D+': 'secondary',
+        'D': 'secondary',
+        'F': 'danger'
+    };
+    return colorMap[grade] || 'secondary';
+}
+
+// Cập nhật thống kê
+function updateStatistics(students) {
+    const totalStudents = students.length;
+    const gradedStudents = students.filter(s => s.final_score).length;
+    const pendingStudents = totalStudents - gradedStudents;
+    
+    document.getElementById('totalStudents').textContent = totalStudents;
+    document.getElementById('gradedCount').textContent = gradedStudents;
+    document.getElementById('pendingCount').textContent = pendingStudents;
+}
+
+// Lưu tất cả điểm - ĐÃ SỬA PHẦN XỬ LÝ LỖI
+async function saveAllScores() {
+    if (!currentCourseId) {
+        alert('Vui lòng chọn khóa học trước');
+        return;
+    }
+    
+    try {
+        const scoresData = [];
+        const rows = document.querySelectorAll('#scoresTableBody tr[data-student]');
+        
+        rows.forEach(row => {
+            const studentId = row.dataset.student;
+            const processScoreInput = row.querySelector('.process-score');
+            const examScoreInput = row.querySelector('.exam-score');
+            const notesInput = row.querySelector('.notes-input');
+            const finalScoreCell = row.querySelector('.final-score');
+            
+            const processScore = processScoreInput.value ? parseFloat(processScoreInput.value) : null;
+            const examScore = examScoreInput.value ? parseFloat(examScoreInput.value) : null;
+            const finalScore = finalScoreCell.textContent ? parseFloat(finalScoreCell.textContent) : null;
+            const notes = notesInput.value;
+            
+            scoresData.push({
+                student_id: parseInt(studentId),
+                process_score: processScore,
+                exam_score: examScore,
+                final_score: finalScore,
+                notes: notes
+            });
+        });
+        
+        console.log('Data to save:', {
+            course_id: currentCourseId,
+            scores: scoresData
+        });
+        
+        // KIỂM TRA CSRF TOKEN
+        const csrfToken = document.querySelector('[name="csrf_token"]')?.value || 
+                          document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            alert('Lỗi bảo mật: Không tìm thấy CSRF token');
+            return;
+        }
+        
+        const response = await fetch('/api/teacher/scores/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                course_id: currentCourseId,
+                scores: scoresData
+            })
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Server response:', result);
+        
+        if (result.success) {
+            alert('Đã lưu điểm thành công!');
+            hasUnsavedChanges = false;
+            document.title = document.title.replace('⚡ - Chưa lưu', '');
+        } else {
+            throw new Error(result.message || 'Không thể lưu điểm');
+        }
+        
+    } catch (error) {
+        handleApiError(error, 'Lỗi khi lưu điểm');
+    }
+}
+
+function viewStudentList() {
+    if (!currentCourseId) {
+        alert('Vui lòng chọn khóa học trước');
+        return;
+    }
+    // SỬA: Chuyển hướng với course_id chính xác
+    window.location.href = `/teacher/student-list?course_id=${currentCourseId}`;
+}
+// Tính điểm tất cả sinh viên
+function calculateFinalScores() {
+    const rows = document.querySelectorAll('#scoresTableBody tr[data-student]');
+    let calculatedCount = 0;
+    
+    rows.forEach(row => {
+        const studentId = row.dataset.student;
+        const processScore = parseFloat(row.querySelector('.process-score').value) || 0;
+        const examScore = parseFloat(row.querySelector('.exam-score').value) || 0;
+        
+        if (processScore > 0 && examScore > 0) {
+            calculateStudentScore(studentId);
+            calculatedCount++;
+        }
+    });
+    
+    if (calculatedCount > 0) {
+        alert(`Đã tính điểm cho ${calculatedCount}/${rows.length} sinh viên!`);
+    } else {
+        alert('Không có sinh viên nào có đủ điểm để tính!');
+    }
+}
+
+// Export điểm
+function exportScores() {
+    if (!currentCourseId) {
+        alert('Vui lòng chọn khóa học trước');
+        return;
+    }
+    // Export Excel
+    window.location.href = `/teacher/scores/export-excel/${currentCourseId}`;
+}
+
+
+// Import điểm từ Excel
+function importScores() {
+    if (!currentCourseId) {
+        alert('Vui lòng chọn khóa học trước');
+        return;
+    }
+    alert('Chức năng import từ Excel đang được phát triển');
+}
+
+// Hiển thị chi tiết sinh viên
+function showStudentDetail(studentId) {
+    const row = document.querySelector(`tr[data-student="${studentId}"]`);
+    if (!row) return;
+    
+    const studentName = row.querySelector('.fw-bold').textContent;
+    const studentCode = row.querySelector('.text-primary').textContent;
+    const processScore = row.querySelector('.process-score').value || 'Chưa có';
+    const examScore = row.querySelector('.exam-score').value || 'Chưa có';
+    const finalScore = row.querySelector('.final-score').textContent || 'Chưa có';
+    const gradeBadge = row.querySelector('.badge');
+    const grade = gradeBadge ? gradeBadge.textContent : 'N/A';
+    
+    alert(`Thông tin điểm của ${studentName} (${studentCode}):
+    
+• Điểm quá trình: ${processScore}
+• Điểm thi: ${examScore}
+• Điểm tổng: ${finalScore}
+• Xếp loại: ${grade}`);
+}
+
+// THÊM HÀM MỚI để lấy thông tin lớp chính xác
+async function getCorrectClassForCourse(courseId) {
+    try {
+        const response = await fetch(`/api/teacher/courses/${courseId}/classes`);
+        if (response.ok) {
+            const result = await response.json();
+            return result.classes || [];
+        }
+    } catch (error) {
+        console.error('Error fetching course classes:', error);
+    }
+    return [];
+}
+
+// SỬA HÀM loadStudentsForCourse
+async function loadStudentsForCourse(courseId, classId) {
+    try {
+        showLoading('Đang tải danh sách sinh viên...');
+        
+        const response = await fetch(`/api/teacher/courses/${courseId}/students`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentCourseId = courseId;
+            
+            // LẤY THÔNG TIN LỚP CHÍNH XÁC
+            const courseClasses = await getCorrectClassForCourse(courseId);
+            const classIdMap = {};
+            courseClasses.forEach(cls => {
+                classIdMap[cls.id] = cls.class_name;
+            });
+            
+            // CẬP NHẬT CLASS_NAME CHO SINH VIÊN
+            result.students.forEach(student => {
+                // Tìm lớp chính xác từ classIdMap
+                if (student.class_id && classIdMap[student.class_id]) {
+                    student.class_name = classIdMap[student.class_id];
+                }
+            });
+            
+            displayStudents(result.students, result.course);
+            updateStatistics(result.students);
+            document.getElementById('gradingComponentsCard').style.display = 'block';
+            hasUnsavedChanges = false;
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        handleApiError(error, 'Lỗi khi tải danh sách sinh viên');
+    }
+}
+// Cảnh báo khi rời trang nếu có thay đổi chưa lưu
+window.addEventListener('beforeunload', function(e) {
+    if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Bạn có thay đổi chưa lưu. Bạn có chắc chắn muốn rời đi?';
+    }
+});
+
+// Khởi tạo khi trang loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const classSelect = document.getElementById('classSelect');
+    if (classSelect) {
+        classSelect.addEventListener('change', function() {
+            const classId = this.value;
+            if (classId) {
+                loadCourseStudents(classId);
+            }
+        });
+    }
+});
+
+
+</script>
+{% endblock %}

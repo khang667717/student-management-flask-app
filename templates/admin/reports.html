@@ -1,0 +1,564 @@
+{% extends "layout.html" %}
+
+{% block title %}Báo Cáo & Thống Kê - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .report-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .quick-report-item {
+        border-left: 3px solid;
+        padding: 10px 15px;
+        margin-bottom: 10px;
+        background-color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .quick-report-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .export-buttons .btn {
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-chart-bar me-2"></i>Báo Cáo & Thống Kê
+    </h1>
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-download me-2"></i>Export Báo Cáo
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="exportReport('pdf')"><i class="fas fa-file-pdf me-2"></i>PDF Report</a></li>
+            <li><a class="dropdown-item" href="#" onclick="exportReport('excel')"><i class="fas fa-file-excel me-2"></i>Excel Report</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" onclick="exportAllReports()"><i class="fas fa-file-archive me-2"></i>All Reports (ZIP)</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Report Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card report-card border-left-primary shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Báo Cáo Học Tập
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">15</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span>Báo cáo đã tạo</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="report-icon bg-primary text-white">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card report-card border-left-success shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Báo Cáo Tài Chính
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">8</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span>Báo cáo học phí</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="report-icon bg-success text-white">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card report-card border-left-info shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Thống Kê Giảng Dạy
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">12</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span>Báo cáo GV</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="report-icon bg-info text-white">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card report-card border-left-warning shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Báo Cáo Hệ Thống
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">6</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span>Báo cáo tổng quan</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="report-icon bg-warning text-white">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-section">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Loại báo cáo</label>
+            <select class="form-select" id="reportType">
+                <option value="">Tất cả loại</option>
+                <option value="academic">Học tập</option>
+                <option value="financial">Tài chính</option>
+                <option value="teaching">Giảng dạy</option>
+                <option value="system">Hệ thống</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Năm học</label>
+            <select class="form-select" id="academicYear">
+                <option value="">Tất cả năm</option>
+                <option value="2024">2024-2025</option>
+                <option value="2023">2023-2024</option>
+                <option value="2022">2022-2023</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Học kỳ</label>
+            <select class="form-select" id="semester">
+                <option value="">Tất cả học kỳ</option>
+                <option value="1">Học kỳ 1</option>
+                <option value="2">Học kỳ 2</option>
+                <option value="3">Học kỳ 3 (Hè)</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Khoa/Viện</label>
+            <select class="form-select" id="faculty">
+                <option value="">Tất cả khoa</option>
+                <option value="cntt">Công nghệ thông tin</option>
+                <option value="dientu">Điện tử viễn thông</option>
+                <option value="codien">Cơ điện tử</option>
+            </select>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-12 text-end">
+            <button class="btn btn-primary me-2" onclick="generateReport()">
+                <i class="fas fa-sync-alt me-2"></i>Tạo Báo Cáo
+            </button>
+            <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                <i class="fas fa-redo me-2"></i>Reset
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Reports -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bolt me-2"></i>Báo Cáo Nhanh
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="quick-report-item border-primary" onclick="generateQuickReport('student_performance')">
+                    <h6 class="mb-1">Kết quả học tập sinh viên</h6>
+                    <small class="text-muted">Thống kê điểm số, GPA theo lớp</small>
+                </div>
+                
+                <div class="quick-report-item border-success" onclick="generateQuickReport('attendance')">
+                    <h6 class="mb-1">Báo cáo điểm danh</h6>
+                    <small class="text-muted">Tỷ lệ chuyên cần theo môn học</small>
+                </div>
+                
+                <div class="quick-report-item border-info" onclick="generateQuickReport('teacher_workload')">
+                    <h6 class="mb-1">Khối lượng giảng dạy</h6>
+                    <small class="text-muted">Số giờ dạy của giáo viên</small>
+                </div>
+                
+                <div class="quick-report-item border-warning" onclick="generateQuickReport('course_registration')">
+                    <h6 class="mb-1">Đăng ký học phần</h6>
+                    <small class="text-muted">Thống kê đăng ký theo môn</small>
+                </div>
+                
+                <div class="quick-report-item border-danger" onclick="generateQuickReport('financial_summary')">
+                    <h6 class="mb-1">Tổng quan tài chính</h6>
+                    <small class="text-muted">Học phí, công nợ sinh viên</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Statistics -->
+    <div class="col-lg-8 mb-4">
+        <div class="chart-container">
+            <h5 class="text-primary mb-3">
+                <i class="fas fa-chart-line me-2"></i>Thống Kê Điểm Số Theo Học Kỳ
+            </h5>
+            <canvas id="scoreTrendChart" height="250"></canvas>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-chart-pie me-2"></i>Phân Bố Điểm
+                    </h6>
+                    <canvas id="scoreDistributionChart" height="200"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-chart-bar me-2"></i>Sinh Viên Theo Khoa
+                    </h6>
+                    <canvas id="studentsByFacultyChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generated Reports -->
+<div class="card shadow mt-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-file-alt me-2"></i>Báo Cáo Đã Tạo
+        </h5>
+        <span class="badge bg-primary">{{ reports|length }} báo cáo</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên báo cáo</th>
+                        <th>Loại</th>
+                        <th>Ngày tạo</th>
+                        <th>Người tạo</th>
+                        <th>Kích thước</th>
+                        <th width="200" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>
+                            <i class="fas fa-{{ 'file-pdf' if report.format == 'pdf' else 'file-excel' }} me-2 text-{{ 'danger' if report.format == 'pdf' else 'success' }}"></i>
+                            {{ report.name }}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 
+                                'primary' if report.type == 'academic' else 
+                                'success' if report.type == 'financial' else 
+                                'info' if report.type == 'teaching' else 
+                                'warning' 
+                            }}">
+                                {{ 
+                                    'Học tập' if report.type == 'academic' else 
+                                    'Tài chính' if report.type == 'financial' else 
+                                    'Giảng dạy' if report.type == 'teaching' else 
+                                    'Hệ thống' 
+                                }}
+                            </span>
+                        </td>
+                        <td>{{ report.created_date }}</td>
+                        <td>{{ report.creator }}</td>
+                        <td>{{ report.size }}</td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm export-buttons">
+                                <button class="btn btn-outline-primary" onclick="viewReport({{ report.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-success" onclick="downloadReport({{ report.id }})">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteReport({{ report.id }}, '{{ report.name }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Report Preview Modal -->
+<div class="modal fade" id="reportPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="reportPreviewTitle">
+                    <i class="fas fa-file-pdf me-2"></i>Xem Trước Báo Cáo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center py-5">
+                    <i class="fas fa-file-pdf fa-5x text-danger mb-3"></i>
+                    <h5>Báo cáo đang được tạo...</h5>
+                    <p class="text-muted">Vui lòng chờ trong giây lát</p>
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary">
+                    <i class="fas fa-download me-2"></i>Tải Xuống
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Score Trend Chart
+    const trendCtx = document.getElementById('scoreTrendChart').getContext('2d');
+    const trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: ['HK1-2021', 'HK2-2021', 'HK1-2022', 'HK2-2022', 'HK1-2023', 'HK2-2023'],
+            datasets: [
+                {
+                    label: 'Điểm TB toàn trường',
+                    data: [7.2, 7.4, 7.6, 7.8, 7.9, 8.1],
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Điểm TB khoa CNTT',
+                    data: [7.5, 7.7, 7.9, 8.1, 8.2, 8.4],
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Xu hướng điểm trung bình qua các học kỳ'
+                }
+            }
+        }
+    });
+
+    // Score Distribution Chart
+    const distCtx = document.getElementById('scoreDistributionChart').getContext('2d');
+    const distChart = new Chart(distCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Xuất sắc (8.5-10)', 'Giỏi (7.0-8.4)', 'Khá (5.5-6.9)', 'Trung bình (4.0-5.4)', 'Yếu (<4.0)'],
+            datasets: [{
+                data: [15, 35, 30, 15, 5],
+                backgroundColor: [
+                    '#198754',
+                    '#20c997',
+                    '#ffc107',
+                    '#fd7e14',
+                    '#dc3545'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Students by Faculty Chart
+    const facultyCtx = document.getElementById('studentsByFacultyChart').getContext('2d');
+    const facultyChart = new Chart(facultyCtx, {
+        type: 'bar',
+        data: {
+            labels: ['CNTT', 'Điện tử', 'Cơ điện', 'Xây dựng', 'Kinh tế'],
+            datasets: [{
+                label: 'Số sinh viên',
+                data: [450, 320, 280, 200, 350],
+                backgroundColor: [
+                    'rgba(13, 110, 253, 0.8)',
+                    'rgba(25, 135, 84, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(253, 126, 20, 0.8)',
+                    'rgba(108, 117, 125, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Phân bố sinh viên theo khoa'
+                }
+            }
+        }
+    });
+});
+
+function resetFilters() {
+    document.getElementById('reportType').value = '';
+    document.getElementById('academicYear').value = '';
+    document.getElementById('semester').value = '';
+    document.getElementById('faculty').value = '';
+}
+
+function generateReport() {
+    const reportType = document.getElementById('reportType').value;
+    const academicYear = document.getElementById('academicYear').value;
+    const semester = document.getElementById('semester').value;
+    const faculty = document.getElementById('faculty').value;
+    
+    if (!reportType) {
+        alert('Vui lòng chọn loại báo cáo');
+        return;
+    }
+    
+    // Show loading indicator
+    const modal = new bootstrap.Modal(document.getElementById('reportPreviewModal'));
+    document.getElementById('reportPreviewTitle').innerHTML = '<i class="fas fa-file-pdf me-2"></i>Đang tạo báo cáo...';
+    modal.show();
+    
+    // Simulate report generation
+    setTimeout(() => {
+        document.getElementById('reportPreviewTitle').innerHTML = '<i class="fas fa-file-pdf me-2"></i>Báo Cáo Học Tập - HK1 2024';
+        alert('Báo cáo đã được tạo thành công!');
+    }, 2000);
+}
+
+function generateQuickReport(type) {
+    const reportNames = {
+        'student_performance': 'Kết quả học tập sinh viên',
+        'attendance': 'Báo cáo điểm danh',
+        'teacher_workload': 'Khối lượng giảng dạy',
+        'course_registration': 'Đăng ký học phần',
+        'financial_summary': 'Tổng quan tài chính'
+    };
+    
+    document.getElementById('reportPreviewTitle').innerHTML = `<i class="fas fa-file-pdf me-2"></i>${reportNames[type]}`;
+    const modal = new bootstrap.Modal(document.getElementById('reportPreviewModal'));
+    modal.show();
+}
+
+function viewReport(reportId) {
+    alert('Xem báo cáo: ' + reportId);
+    // Implement view report
+}
+
+function downloadReport(reportId) {
+    alert('Tải xuống báo cáo: ' + reportId);
+    // Implement download report
+}
+
+function deleteReport(reportId, reportName) {
+    if (confirm(`Bạn có chắc muốn xóa báo cáo "${reportName}"?`)) {
+        alert('Đã xóa báo cáo: ' + reportId);
+        // Implement delete report
+    }
+}
+
+function exportReport(format) {
+    alert(`Export báo cáo dạng ${format.toUpperCase()}`);
+    // Implement export report
+}
+
+function exportAllReports() {
+    alert('Export tất cả báo cáo dạng ZIP');
+    // Implement export all reports
+}
+</script>
+{% endblock %}

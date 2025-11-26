@@ -1,0 +1,728 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý Users - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .role-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 10px;
+    }
+    
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+        border-radius: 8px;
+    }
+    
+    .table-actions {
+        white-space: nowrap;
+    }
+    
+    .search-box {
+        max-width: 300px;
+    }
+    
+    /* Style cho dynamic fields */
+    .dynamic-field {
+        display: none;
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-users-cog me-2"></i>Quản lý Người Dùng
+    </h1>
+    <div>
+        <a class="btn btn-success me-2" href="{{ url_for('export_users_excel') }}">
+            <i class="fas fa-file-export me-2"></i>Export Excel
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="fas fa-user-plus me-2"></i>Thêm User Mới
+        </button>
+    </div>
+</div>
+<!-- Filters and Search -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label">Tìm kiếm</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Tên, email, username..." id="searchInput">
+                    <button class="btn btn-outline-secondary" type="button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Vai trò</label>
+                <select class="form-select" id="roleFilter">
+                    <option value="">Tất cả</option>
+                    <option value="admin">Admin</option>
+                    <option value="teacher">Giáo viên</option>
+                    <option value="student">Sinh viên</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="inactive">Không hoạt động</option>
+                    <option value="pending">Chờ duyệt</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="fas fa-redo me-2"></i>Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card shadow">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-list me-2"></i>Danh sách Người Dùng
+        </h5>
+        <span class="badge bg-primary">{{ users|length }} users</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="usersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">#</th>
+                        <th>Người dùng</th>
+                        <th>Email</th>
+                        <th>Vai trò</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th width="150" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ user.avatar or url_for('static', filename='images/default-avatar.png') }}" 
+                                     alt="Avatar" class="user-avatar me-3">
+                                <div>
+                                    <h6 class="mb-0">{{ user.full_name }}</h6>
+                                    <small class="text-muted">@{{ user.username }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.role.value == 'admin' %}
+                                <span class="badge role-badge bg-danger">Admin</span>
+                            {% elif user.role.value == 'teacher' %}
+                                <span class="badge role-badge bg-warning">Giáo viên</span>
+                            {% elif user.role.value == 'student' %}
+                                <span class="badge role-badge bg-primary">Sinh viên</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge status-badge bg-success">Đang hoạt động</span>
+                            {% else %}
+                                <span class="badge status-badge bg-secondary">Không hoạt động</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%d/%m/%Y') }}</td>
+                        <td class="text-center table-actions">
+                            <div class="btn-group btn-group-sm">
+                                <button onclick="viewUser({{ user.id }})" 
+                                        class="btn btn-outline-primary" 
+                                        data-bs-toggle="tooltip" 
+                                        title="Xem chi tiết">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+
+                                <button onclick="editUser({{ user.id }})"
+                                        class="btn btn-outline-warning"
+                                        data-bs-toggle="tooltip"
+                                        title="Chỉnh sửa">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+
+                                {% if user.id != current_user.id %}
+                                <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
+                                      onsubmit="return confirm('Bạn có chắc muốn xóa user {{ user.full_name }}?');"
+                                      style="display: inline;">
+                                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                      <button type="submit" class="btn btn-outline-danger"
+                                              data-bs-toggle="tooltip"
+                                              title="Xóa user">
+                                          <i class="fas fa-trash"></i>
+                                      </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item disabled">
+                    <a class="page-link" href="#">Previous</a>
+                </li>
+                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                <li class="page-item">
+                    <a class="page-link" href="#">Next</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Thêm User Mới
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_user') }}" id="addUserForm">
+                {{ form.csrf_token }}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.full_name.label(class="form-label") }}
+                                {{ form.full_name(class="form-control") }}
+                                {% if form.full_name.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.full_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                {{ form.username(class="form-control") }}
+                                {% if form.username.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.username.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control") }}
+                                {% if form.email.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.email.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.role.label(class="form-label") }}
+                                {{ form.role(class="form-select", id="role") }}
+                                {% if form.role.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.role.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <!-- 🎯 DYNAMIC FIELD: Chuyên ngành (Giảng viên) -->
+                            <div class="mb-3 dynamic-field" id="department-field">
+                                {{ form.department.label(class="form-label") }}
+                                {{ form.department(class="form-select", id="department") }}
+                                {% if form.department.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.department.errors %}
+                                           {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <!-- 🎯 DYNAMIC FIELD: Khóa học (Sinh viên) -->
+                            <div class="mb-3 dynamic-field" id="course-field">
+                                {{ form.course_year.label(class="form-label") }}
+                                {{ form.course_year(class="form-select", id="course_year") }}
+                                {% if form.course_year.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.course_year.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.password.label(class="form-label") }}
+                                {{ form.password(class="form-control") }}
+                                {% if form.password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.password.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.confirm_password.label(class="form-label") }}
+                                {{ form.confirm_password(class="form-control") }}
+                                {% if form.confirm_password.errors %}
+                                    <div class="text-danger small">
+                                        {% for error in form.confirm_password.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        {{ form.is_active(class="form-check-input") }}
+                        {{ form.is_active.label(class="form-check-label") }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    {{ form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="viewUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye me-2"></i>Chi tiết Người Dùng
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewUserContent">
+                <!-- Nội dung sẽ được load bằng JavaScript -->
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Đang tải thông tin...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Chỉnh sửa Người Dùng
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editUserForm">
+                <div class="modal-body" id="editUserContent">
+                    <!-- Nội dung form sẽ được load bằng JavaScript -->
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Đang tải form chỉnh sửa...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-2"></i>Cập nhật
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleRoleFields() {
+    const role = document.getElementById('role').value;
+    const departmentField = document.getElementById('department-field');
+    const courseField = document.getElementById('course-field');
+    const departmentSelect = document.getElementById('department');
+    const courseSelect = document.getElementById('course_year');
+    
+    // Ẩn tất cả fields trước
+    if (departmentField) departmentField.style.display = 'none';
+    if (courseField) courseField.style.display = 'none';
+    
+    // Xóa validation required trước
+    if (departmentSelect) departmentSelect.removeAttribute('required');
+    if (courseSelect) courseSelect.removeAttribute('required');
+    
+    // Hiển thị field tương ứng với role
+    if (role === 'teacher') {
+        if (departmentField) {
+            departmentField.style.display = 'block';
+            if (departmentSelect) departmentSelect.setAttribute('required', 'required');
+        }
+    } else if (role === 'student') {
+        if (courseField) {
+            courseField.style.display = 'block';
+            if (courseSelect) courseSelect.setAttribute('required', 'required');
+        }
+    }
+}
+// Xem chi tiết user
+// Chỉnh sửa user - Mở modal với form
+function editUser(userId) {
+    fetch(`/edit_user/${userId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const content = `
+                <input type="hidden" name="user_id" value="${data.id}">
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="full_name" value="${data.full_name}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" value="${data.email}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Điện thoại</label>
+                            <input type="text" class="form-control" name="phone" value="${data.phone || ''}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" value="${data.username}" disabled>
+                            <small class="text-muted">Username không thể thay đổi</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Vai trò</label>
+                            <input type="text" class="form-control" value="${getRoleText(data.role)}" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Địa chỉ</label>
+                            <textarea class="form-control" name="address" rows="2">${data.address || ''}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Dynamic Fields based on Role -->
+                ${data.role === 'teacher' ? `
+                <div class="row mt-3" id="teacherFields">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Chuyên ngành</label>
+                            <select class="form-select" name="department">
+                                <option value="">Chọn chuyên ngành</option>
+                                <option value="cntt" ${data.department === 'cntt' ? 'selected' : ''}>Công nghệ thông tin</option>
+                                <option value="kt" ${data.department === 'kt' ? 'selected' : ''}>Kế toán</option>
+                                <option value="qtkd" ${data.department === 'qtkd' ? 'selected' : ''}>Quản trị kinh doanh</option>
+                                <option value="dl" ${data.department === 'dl' ? 'selected' : ''}>Du lịch</option>
+                                <option value="anh" ${data.department === 'anh' ? 'selected' : ''}>Ngôn ngữ Anh</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Chức vụ</label>
+                            <input type="text" class="form-control" name="position" value="${data.position || ''}" placeholder="Giảng viên, Trưởng bộ môn...">
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                ${data.role === 'student' ? `
+                <div class="row mt-3" id="studentFields">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Mã sinh viên</label>
+                            <input type="text" class="form-control" value="${data.student_id || ''}" disabled>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Khóa học</label>
+                            <select class="form-select" name="course">
+                                <option value="K2023" ${data.course === 'K2023' ? 'selected' : ''}>K2023</option>
+                                <option value="K2024" ${data.course === 'K2024' ? 'selected' : ''}>K2024</option>
+                                <option value="K2025" ${data.course === 'K2025' ? 'selected' : ''}>K2025</option>
+                                <option value="K2026" ${data.course === 'K2026' ? 'selected' : ''}>K2026</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Status Switch -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive" ${data.is_active ? 'checked' : ''}>
+                            <label class="form-check-label" for="editIsActive">
+                                <strong>Tài khoản đang hoạt động</strong>
+                            </label>
+                            <small class="text-muted d-block">Tắt để khóa tài khoản này</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Alert Message -->
+                <div class="alert alert-info mt-3">
+                    <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        Các trường đánh dấu <span class="text-danger">*</span> là bắt buộc
+                    </small>
+                </div>
+            `;
+            
+            document.getElementById('editUserContent').innerHTML = content;
+            
+            // Hiển thị modal
+            const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('editUserContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Lỗi khi tải thông tin user. Vui lòng thử lại.
+                </div>
+            `;
+        });
+}
+
+// Xử lý submit form chỉnh sửa
+document.getElementById('editUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        user_id: formData.get('user_id'),
+        full_name: formData.get('full_name'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        address: formData.get('address'),
+        is_active: document.getElementById('editIsActive') ? document.getElementById('editIsActive').checked : true,
+        department: formData.get('department'),
+        position: formData.get('position'),
+        course: formData.get('course')
+    };
+    
+    // Hiển thị loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang cập nhật...';
+    submitBtn.disabled = true;
+    
+    fetch(`/edit_user/${data.user_id}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Hiển thị thông báo thành công
+            showFlashMessage(result.message, 'success');
+            
+            // Đóng modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editUserModal'));
+            modal.hide();
+            
+            // Reload page sau 1.5 giây để cập nhật danh sách
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showFlashMessage(result.message, 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showFlashMessage('Lỗi kết nối. Vui lòng thử lại.', 'error');
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Hàm hiển thị flash message
+function showFlashMessage(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        <i class="fas ${icon} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Thêm alert vào đầu content
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Tự động xóa sau 5 giây
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Utility function để hiển thị tên vai trò
+function getRoleText(role) {
+    const roleMap = {
+        'admin': 'Quản trị viên',
+        'teacher': 'Giáo viên', 
+        'student': 'Sinh viên'
+    };
+    return roleMap[role] || role;
+}
+
+function flashMessage(message, type) {
+    // Tạo và hiển thị flash message
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertBefore(alert, document.querySelector('.container').firstChild);
+    
+    setTimeout(() => alert.remove(), 5000);
+}
+function resetModal() {
+    // Reset form khi modal đóng
+    document.getElementById('addUserForm').reset();
+    toggleRoleFields(); // Reset hiển thị fields
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('roleFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterUsers();
+}
+
+function filterUsers() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('#usersTable tbody tr');
+    
+    rows.forEach(row => {
+        const name = row.cells[1].textContent.toLowerCase();
+        const role = row.cells[3].textContent.toLowerCase();
+        const status = row.cells[4].textContent.toLowerCase();
+        
+        const matchesSearch = name.includes(searchText);
+        const matchesRole = !roleFilter || role.includes(roleFilter);
+        const matchesStatus = !statusFilter || status.includes(statusFilter);
+        
+        row.style.display = (matchesSearch && matchesRole && matchesStatus) ? '' : 'none';
+    });
+}
+
+
+
+
+// Xóa hoặc chỉnh sửa logic deleteUser cũ
+function deleteUser(userId, userName) {
+    if (confirm(`Bạn có chắc muốn xóa user "${userName}"?`)) {
+        // Nếu không dùng Form, bạn phải dùng AJAX hoặc link GET, nhưng không nên.
+        // Tốt nhất là sử dụng Form POST như đề xuất ở trên.
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Khởi tạo dynamic fields
+    toggleRoleFields();
+    
+    // Lắng nghe sự kiện thay đổi role
+    document.getElementById('role').addEventListener('change', toggleRoleFields);
+    
+    // Reset modal khi đóng
+    const addUserModal = document.getElementById('addUserModal');
+    if (addUserModal) {
+        addUserModal.addEventListener('hidden.bs.modal', resetModal);
+    }
+});
+
+// Event listeners for filters
+document.getElementById('searchInput').addEventListener('input', filterUsers);
+document.getElementById('roleFilter').addEventListener('change', filterUsers);
+document.getElementById('statusFilter').addEventListener('change', filterUsers);
+
+// Initialize tooltips
+const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+
+function exportUsers() {
+    window.location.href = "{{ url_for('export_users_excel') }}";
+}
+
+</script>
+{% endblock %}

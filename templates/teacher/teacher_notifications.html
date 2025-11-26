@@ -1,0 +1,1487 @@
+{% extends "layout.html" %}
+
+{% block title %}Thông Báo - Teacher{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notification-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        margin-bottom: 15px;
+    }
+    
+    .notification-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .notification-unread {
+        border-left: 4px solid #0d6efd;
+        background-color: #f8f9fa;
+    }
+    
+    .notification-important {
+        border-left: 4px solid #dc3545;
+        background-color: #fff5f5;
+    }
+    
+    .notification-warning {
+        border-left: 4px solid #ffc107;
+        background-color: #fffbf0;
+    }
+    
+    .notification-success {
+        border-left: 4px solid #198754;
+        background-color: #f0fff4;
+    }
+    
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+    
+    .notification-badge {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+    
+    .filter-tabs .nav-link {
+        border: none;
+        border-radius: 8px;
+        margin-right: 5px;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .filter-tabs .nav-link.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .mark-all-read {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-bell me-2"></i>Thông Báo
+    </h1>
+    <div>
+        <button class="btn btn-outline-primary me-2" onclick="markAllAsRead()">
+            <i class="fas fa-check-double me-2"></i>Đánh dấu đã đọc
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#notificationSettingsModal">
+            <i class="fas fa-cog me-2"></i>Cài đặt
+        </button>
+    </div>
+</div>
+
+<!-- THÊM VÀO SAU PHẦN HEADER -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Thông báo mới
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ notifications|selectattr("read", "false")|list|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-bell fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Học tập
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ notifications|selectattr("category", "equalto", "academic")|list|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Quan trọng
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ notifications|selectattr("priority", "equalto", "high")|list|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Sinh viên điểm kém
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="lowScoreCount">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Filter Tabs -->
+        <div class="card shadow mb-4">
+            <div class="card-header bg-white py-3">
+                <ul class="nav nav-pills filter-tabs" id="notificationTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button">
+                            <i class="fas fa-list me-1"></i>Tất cả
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="unread-tab" data-bs-toggle="tab" data-bs-target="#unread" type="button">
+                            <i class="fas fa-envelope me-1"></i>Chưa đọc
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="important-tab" data-bs-toggle="tab" data-bs-target="#important" type="button">
+                            <i class="fas fa-exclamation-circle me-1"></i>Quan trọng
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="academic-tab" data-bs-toggle="tab" data-bs-target="#academic" type="button">
+                            <i class="fas fa-graduation-cap me-1"></i>Học tập
+                        </button>
+                    </li>
+                    <!-- THÊM TAB ĐIỂM KÉM -->
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="lowscore-tab" data-bs-toggle="tab" data-bs-target="#lowscore" type="button">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Điểm kém
+                            <span class="badge bg-danger ms-1" id="lowScoreBadge">0</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Notifications List -->
+        <div class="tab-content" id="notificationTabsContent">
+            <!-- All Notifications -->
+            <div class="tab-pane fade show active" id="all" role="tabpanel">
+                {% for notification in notifications %}
+                <div class="card notification-card {{ 'notification-unread' if not notification.read else '' }} {{ 'notification-important' if notification.priority == 'high' else 'notification-warning' if notification.priority == 'medium' else 'notification-success' if notification.type == 'success' else '' }}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-{{ 
+                                    'danger' if notification.priority == 'high' else 
+                                    'warning' if notification.priority == 'medium' else 
+                                    'success' if notification.type == 'success' else 
+                                    'primary' 
+                                }} text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-1">{{ notification.title }}</h6>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary border-0" type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li>
+                                                <a class="dropdown-item mark-all-read" href="#" onclick="markAsRead({{ notification.id }})">
+                                                    <i class="fas fa-check me-2"></i>Đánh dấu đã đọc
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#" onclick="deleteNotification({{ notification.id }})">
+                                                    <i class="fas fa-trash me-2"></i>Xóa thông báo
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <div>
+                                        {% if not notification.read %}
+                                        <span class="badge notification-badge bg-primary">Mới</span>
+                                        {% endif %}
+                                        {% if notification.priority == 'high' %}
+                                        <span class="badge notification-badge bg-danger">Quan trọng</span>
+                                        {% endif %}
+                                        <span class="badge notification-badge bg-secondary">{{ notification.category }}</span>
+                                    </div>
+                                </div>
+                                
+                                {% if notification.actions %}
+                                <div class="mt-3">
+                                    {% for action in notification.actions %}
+                                    <button class="btn btn-sm btn-{{ action.type }} me-2" onclick="{{ action.handler }}">
+                                        <i class="fas fa-{{ action.icon }} me-1"></i>{{ action.text }}
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <h4>Không có thông báo</h4>
+                    <p>Bạn không có thông báo nào ở thời điểm hiện tại.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Unread Notifications -->
+            <div class="tab-pane fade" id="unread" role="tabpanel">
+                {% set unread_notifications = notifications | selectattr("read", "false") | list %}
+                {% for notification in unread_notifications %}
+                <div class="card notification-card notification-unread">
+                    <div class="card-body">
+                        <!-- Same structure as all notifications -->
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-primary text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <span class="badge notification-badge bg-primary">Mới</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not unread_notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <h4>Không có thông báo chưa đọc</h4>
+                    <p>Tất cả thông báo đã được đọc.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Important Notifications -->
+            <div class="tab-pane fade" id="important" role="tabpanel">
+                {% set important_notifications = notifications | selectattr("priority", "equalto", "high") | list %}
+                {% for notification in important_notifications %}
+                <div class="card notification-card notification-important">
+                    <div class="card-body">
+                        <!-- Same structure as all notifications -->
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-danger text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <span class="badge notification-badge bg-danger">Quan trọng</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not important_notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h4>Không có thông báo quan trọng</h4>
+                    <p>Không có thông báo nào được đánh dấu quan trọng.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Academic Notifications -->
+            <div class="tab-pane fade" id="academic" role="tabpanel">
+                {% set academic_notifications = notifications | selectattr("category", "equalto", "Học tập") | list %}
+                {% for notification in academic_notifications %}
+                <div class="card notification-card">
+                    <div class="card-body">
+                        <!-- Same structure as all notifications -->
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="notification-icon bg-success text-white">
+                                    <i class="fas fa-{{ notification.icon }}"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-2 text-muted">{{ notification.message }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.time }}
+                                    </small>
+                                    <span class="badge notification-badge bg-success">Học tập</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not academic_notifications %}
+                <div class="empty-state">
+                    <i class="fas fa-graduation-cap"></i>
+                    <h4>Không có thông báo học tập</h4>
+                    <p>Không có thông báo nào về học tập.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- THÊM PANEL ĐIỂM KÉM -->
+            <div class="tab-pane fade" id="lowscore" role="tabpanel">
+                <!-- Thống kê nhanh -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center">
+                                <h4 class="mb-0" id="totalLowScores">0</h4>
+                                <small>Tổng SV điểm kém</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body text-center">
+                                <h4 class="mb-0" id="needContactCount">0</h4>
+                                <small>Cần liên hệ</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center">
+                                <h4 class="mb-0" id="notifiedCount">0</h4>
+                                <small>Đã thông báo</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bộ lọc và công cụ -->
+                <div class="card mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 text-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Quản lý Sinh viên Điểm kém
+                        </h6>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-danger" onclick="exportLowScores()">
+                                <i class="fas fa-download me-1"></i>Export
+                            </button>
+                            <button class="btn btn-sm btn-warning" onclick="openReportModal()">
+                                <i class="fas fa-flag me-1"></i>Báo cáo
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="sendAllLowScoreNotifications()">
+                                <i class="fas fa-bell me-1"></i>Gửi TB tất cả
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Bộ lọc -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Môn học</label>
+                                <select class="form-select" id="courseFilter" onchange="filterLowScores()">
+                                    <option value="">Tất cả môn</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Lớp</label>
+                                <select class="form-select" id="classFilter" onchange="filterLowScores()">
+                                    <option value="">Tất cả lớp</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Điểm từ</label>
+                                <input type="number" class="form-control" id="scoreFrom" min="0" max="4.9" step="0.1" 
+                                       placeholder="0.0" onchange="filterLowScores()">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Đến</label>
+                                <input type="number" class="form-control" id="scoreTo" min="0" max="4.9" step="0.1" 
+                                       placeholder="4.9" onchange="filterLowScores()">
+                            </div>
+                        </div>
+
+                        <!-- Danh sách sinh viên với checkbox -->
+                        <div id="lowScoresList">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-danger" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Đang tải danh sách sinh viên điểm kém...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load More Button -->
+        {% if notifications %}
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-primary" onclick="loadMoreNotifications()">
+                <i class="fas fa-arrow-down me-2"></i>Tải thêm thông báo
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Notification Settings -->
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-cog me-2"></i>Cài đặt Thông báo
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-primary">Loại thông báo</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="academicNotifications" checked>
+                        <label class="form-check-label" for="academicNotifications">
+                            Thông báo học tập
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="systemNotifications" checked>
+                        <label class="form-check-label" for="systemNotifications">
+                            Thông báo hệ thống
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="deadlineNotifications" checked>
+                        <label class="form-check-label" for="deadlineNotifications">
+                            Nhắc nhở deadline
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="announcementNotifications">
+                        <label class="form-check-label" for="announcementNotifications">
+                            Thông báo chung
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-primary">Phương thức nhận</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                        <label class="form-check-label" for="emailNotifications">
+                            Email
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="pushNotifications" checked>
+                        <label class="form-check-label" for="pushNotifications">
+                            Push Notification
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="smsNotifications">
+                        <label class="form-check-label" for="smsNotifications">
+                            SMS
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-primary">Tần suất</h6>
+                    <select class="form-select" id="notificationFrequency">
+                        <option value="immediate">Ngay lập tức</option>
+                        <option value="daily" selected>Hàng ngày</option>
+                        <option value="weekly">Hàng tuần</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary w-100" onclick="saveNotificationSettings()">
+                    <i class="fas fa-save me-2"></i>Lưu cài đặt
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card shadow mt-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-bolt me-2"></i>Thao tác nhanh
+                </h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-outline-primary w-100 mb-2" onclick="clearAllNotifications()">
+                    <i class="fas fa-trash me-2"></i>Xóa tất cả thông báo
+                </button>
+                <button class="btn btn-outline-success w-100 mb-2" onclick="exportNotifications()">
+                    <i class="fas fa-download me-2"></i>Export thông báo
+                </button>
+                <button class="btn btn-outline-info w-100" onclick="testNotification()">
+                    <i class="fas fa-bell me-2"></i>Kiểm tra thông báo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notification Settings Modal -->
+<div class="modal fade" id="notificationSettingsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog me-2"></i>Cài đặt Thông báo Chi tiết
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Advanced settings content would go here -->
+                <p>Chi tiết cài đặt thông báo nâng cao...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Gửi Thông báo Điểm kém -->
+<div class="modal fade" id="lowScoreNotificationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-bell me-2"></i>Gửi Thông báo Điểm kém
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Chọn sinh viên:</label>
+                    <div id="studentSelection" class="border p-3" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Danh sách sinh viên sẽ được thêm bằng JS -->
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Loại thông báo:</label>
+                    <select class="form-select" id="notificationType">
+                        <option value="email">Email thông báo</option>
+                        <option value="sms">SMS (nếu có)</option>
+                        <option value="both">Cả email và SMS</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Nội dung thông báo:</label>
+                    <textarea class="form-control" id="notificationMessage" rows="5" placeholder="Nhập nội dung thông báo tùy chỉnh..."></textarea>
+                    <small class="text-muted">Để trống để sử dụng mẫu mặc định</small>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="includeAdvice" checked>
+                    <label class="form-check-label" for="includeAdvice">
+                        Bao gồm hướng dẫn cải thiện điểm số
+                    </label>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="notifyParents">
+                    <label class="form-check-label" for="notifyParents">
+                        Thông báo cho phụ huynh (nếu có thông tin)
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="sendLowScoreNotifications()">
+                    <i class="fas fa-paper-plane me-2"></i>Gửi Thông báo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Chi tiết Sinh viên -->
+<div class="modal fade" id="studentDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-graduate me-2"></i>Chi tiết Sinh viên
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentDetailContent">
+                <!-- Nội dung sẽ được tải bằng AJAX -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="contactStudent()">
+                    <i class="fas fa-envelope me-2"></i>Liên hệ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Báo cáo Điểm kém -->
+<div class="modal fade" id="reportLowScoreModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-flag me-2"></i>Báo cáo Điểm kém
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Sinh viên được chọn:</label>
+                    <div id="selectedStudentsList" class="border p-3 bg-light" style="max-height: 150px; overflow-y: auto;">
+                        <!-- Danh sách sinh viên sẽ hiện ở đây -->
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Tiêu đề báo cáo:</label>
+                    <input type="text" class="form-control" id="reportTitle" 
+                           placeholder="Ví dụ: Cảnh báo điểm kém môn Toán...">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Nội dung chi tiết:</label>
+                    <textarea class="form-control" id="reportContent" rows="6" 
+                              placeholder="Mô tả chi tiết vấn đề, nguyên nhân điểm kém, đề xuất giải pháp..."></textarea>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendEmailNotification" checked>
+                            <label class="form-check-label" for="sendEmailNotification">
+                                <i class="fas fa-envelope me-1"></i>Gửi email thông báo
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="sendWebNotification" checked>
+                            <label class="form-check-label" for="sendWebNotification">
+                                <i class="fas fa-bell me-1"></i>Thông báo trên web
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3 p-3 bg-info text-white rounded">
+                    <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Lưu ý:</strong> Báo cáo này sẽ được gửi đến sinh viên và lưu vào hệ thống.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" onclick="submitLowScoreReport()">
+                    <i class="fas fa-paper-plane me-2"></i>Gửi Báo cáo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nhận xét Cá nhân -->
+<div class="modal fade" id="personalCommentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-comment me-2"></i>Nhận xét Cá nhân
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Sinh viên:</label>
+                    <input type="text" class="form-control" id="commentStudentName" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Môn học:</label>
+                    <input type="text" class="form-control" id="commentCourseName" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nhận xét cá nhân:</label>
+                    <textarea class="form-control" id="personalComment" rows="4" 
+                              placeholder="Nhập nhận xét cá nhân về sinh viên..."></textarea>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="includeInNotification">
+                    <label class="form-check-label" for="includeInNotification">
+                        Gửi nhận xét này như thông báo cho sinh viên
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-info" onclick="savePersonalComment()">
+                    <i class="fas fa-save me-2"></i>Lưu Nhận xét
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedStudents = [];
+let allLowScores = [];
+let filteredLowScores = [];
+let currentCommentStudent = null;
+
+// Mở modal báo cáo
+function openReportModal() {
+    selectedStudents = getSelectedScores();
+    
+    if (selectedStudents.length === 0) {
+        showToast('Vui lòng chọn ít nhất một sinh viên', 'warning');
+        return;
+    }
+    
+    // Hiển thị danh sách sinh viên được chọn
+    const studentList = document.getElementById('selectedStudentsList');
+    studentList.innerHTML = '';
+    
+    selectedStudents.forEach(scoreId => {
+        const score = allLowScores.find(s => s.id == scoreId);
+        if (score) {
+            const studentItem = document.createElement('div');
+            studentItem.className = 'form-check mb-2';
+            studentItem.innerHTML = `
+                <input class="form-check-input" type="checkbox" checked disabled>
+                <label class="form-check-label">
+                    <strong>${score.student_name}</strong> - ${score.student_code} 
+                    - ${score.course_name} (${score.final_score.toFixed(1)})
+                </label>
+            `;
+            studentList.appendChild(studentItem);
+        }
+    });
+    
+    // Reset form
+    document.getElementById('reportTitle').value = '';
+    document.getElementById('reportContent').value = '';
+    
+    // Hiển thị modal
+    new bootstrap.Modal(document.getElementById('reportLowScoreModal')).show();
+}
+
+// Gửi báo cáo
+// Gửi báo cáo
+function submitLowScoreReport() {
+    const title = document.getElementById('reportTitle').value;
+    const content = document.getElementById('reportContent').value;
+    const sendEmail = document.getElementById('sendEmailNotification').checked;
+    const sendWeb = document.getElementById('sendWebNotification').checked;
+    
+    if (!title.trim()) {
+        showToast('Vui lòng nhập tiêu đề báo cáo', 'warning');
+        return;
+    }
+    
+    if (!content.trim()) {
+        showToast('Vui lòng nhập nội dung báo cáo', 'warning');
+        return;
+    }
+    
+    // Lấy CSRF token từ meta tag (nếu có) hoặc từ form
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                     document.querySelector('input[name="csrf_token"]')?.value || '';
+    
+    fetch('/api/teacher/submit-low-score-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            selected_students: selectedStudents,  // Đổi tên để rõ ràng
+            title: title,
+            content: content,
+            send_email: sendEmail,
+            send_web_notification: sendWeb
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Đã gửi báo cáo cho ${data.reported_count} sinh viên`, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('reportLowScoreModal')).hide();
+            document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = false);
+            updateBulkActionButton();
+        } else {
+            showToast('Lỗi: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Lỗi kết nối: ' + error.message, 'error');
+    });
+}
+// Mở modal nhập nhận xét
+function openCommentModal(studentId, studentName, courseName) {
+    currentCommentStudent = studentId;
+    document.getElementById('commentStudentName').value = studentName;
+    document.getElementById('commentCourseName').value = courseName;
+    document.getElementById('personalComment').value = '';
+    
+    new bootstrap.Modal(document.getElementById('personalCommentModal')).show();
+}
+
+// Lưu nhận xét
+function savePersonalComment() {
+    const comment = document.getElementById('personalComment').value;
+    const includeInNotification = document.getElementById('includeInNotification').checked;
+    
+    if (!comment.trim()) {
+        showToast('Vui lòng nhập nhận xét', 'warning');
+        return;
+    }
+    
+    // Gửi nhận xét đến server
+    fetch('/api/teacher/save-personal-comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: currentCommentStudent,
+            comment: comment,
+            include_in_notification: includeInNotification,
+            course_name: document.getElementById('commentCourseName').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đã lưu nhận xét thành công', 'success');
+            document.getElementById('personalCommentModal').querySelector('.btn-close').click();
+            
+            // Nếu chọn gửi thông báo, gửi ngay
+            if (includeInNotification) {
+                sendPersonalNotification(currentCommentStudent, comment);
+            }
+        } else {
+            showToast('Lỗi khi lưu nhận xét: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Lỗi kết nối: ' + error.message, 'error');
+    });
+}
+
+// Gửi thông báo cá nhân
+function sendPersonalNotification(studentId, comment) {
+    fetch('/api/teacher/send-personal-notification', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            message: comment,
+            course_name: document.getElementById('commentCourseName').value
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đã gửi thông báo cá nhân cho sinh viên', 'success');
+        }
+    });
+}
+
+function markAsRead(notificationId) {
+    // In real application, this would be an AJAX call
+    console.log('Marking notification as read:', notificationId);
+    
+    // Update UI
+    const notificationCard = document.querySelector(`[onclick="markAsRead(${notificationId})"]`).closest('.notification-card');
+    notificationCard.classList.remove('notification-unread');
+    
+    // Show success message
+    showToast('Đã đánh dấu đã đọc', 'success');
+}
+
+function markAllAsRead() {
+    if (confirm('Bạn có chắc muốn đánh dấu tất cả thông báo là đã đọc?')) {
+        // In real application, this would be an AJAX call
+        console.log('Marking all notifications as read');
+        
+        // Update UI
+        document.querySelectorAll('.notification-unread').forEach(card => {
+            card.classList.remove('notification-unread');
+        });
+        
+        showToast('Đã đánh dấu tất cả thông báo là đã đọc', 'success');
+    }
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('Bạn có chắc muốn xóa thông báo này?')) {
+        // In real application, this would be an AJAX call
+        console.log('Deleting notification:', notificationId);
+        
+        // Remove from UI
+        const notificationCard = document.querySelector(`[onclick="deleteNotification(${notificationId})"]`).closest('.notification-card');
+        notificationCard.remove();
+        
+        showToast('Đã xóa thông báo', 'success');
+    }
+}
+
+function clearAllNotifications() {
+    if (confirm('Bạn có chắc muốn xóa tất cả thông báo? Hành động này không thể hoàn tác.')) {
+        // In real application, this would be an AJAX call
+        console.log('Clearing all notifications');
+        
+        // Clear UI
+        document.querySelectorAll('.notification-card').forEach(card => {
+            card.remove();
+        });
+        
+        // Show empty state
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.innerHTML = `
+            <i class="fas fa-bell-slash"></i>
+            <h4>Không có thông báo</h4>
+            <p>Bạn không có thông báo nào ở thời điểm hiện tại.</p>
+        `;
+        document.querySelector('#all').appendChild(emptyState);
+        
+        showToast('Đã xóa tất cả thông báo', 'success');
+    }
+}
+
+function loadMoreNotifications() {
+    // Simulate loading more notifications
+    showToast('Đang tải thêm thông báo...', 'info');
+    
+    // In real application, this would be an AJAX call
+    setTimeout(() => {
+        showToast('Đã tải thêm thông báo', 'success');
+    }, 1000);
+}
+
+function exportNotifications() {
+    alert('Export thông báo ra file Excel');
+    // Implement export functionality
+}
+
+function testNotification() {
+    // Test push notification
+    if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                new Notification('Test Thông báo', {
+                    body: 'Đây là thông báo kiểm tra từ hệ thống',
+                    icon: '/static/images/logo.png'
+                });
+                showToast('Đã gửi thông báo kiểm tra', 'success');
+            }
+        });
+    } else {
+        showToast('Trình duyệt không hỗ trợ thông báo', 'warning');
+    }
+}
+
+function saveNotificationSettings() {
+    // Save notification settings
+    showToast('Đã lưu cài đặt thông báo', 'success');
+}
+
+function showToast(message, type) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Tải danh sách điểm kém
+function loadLowScores() {
+    fetch('/api/teacher/low-scores')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allLowScores = data.low_scores;
+                filteredLowScores = [...allLowScores];
+                updateLowScoresUI();
+                updateLowScoreStats();
+                populateFilters();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading low scores:', error);
+            showToast('Lỗi tải danh sách điểm kém', 'error');
+        });
+}
+
+// Cập nhật UI danh sách điểm kém
+function updateLowScoresUI() {
+    const container = document.getElementById('lowScoresList');
+    
+    if (filteredLowScores.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h5 class="text-muted">Không có sinh viên điểm kém</h5>
+                <p class="text-muted">Tất cả sinh viên đều đạt điểm tốt!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th width="40">
+                            <input type="checkbox" class="form-check-input" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th>STT</th>
+                        <th>Sinh viên</th>
+                        <th>Mã SV</th>
+                        <th>Lớp</th>
+                        <th>Môn học</th>
+                        <th>Điểm TB</th>
+                        <th>Trạng thái</th>
+                        <th width="150">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    filteredLowScores.forEach((score, index) => {
+        const scoreClass = score.final_score < 3.0 ? 'table-danger' : 
+                          score.final_score < 5.0 ? 'table-warning' : '';
+        
+        html += `
+            <tr class="${scoreClass}">
+                <td>
+                    <input type="checkbox" class="form-check-input student-checkbox" 
+                           data-student-id="${score.student_id}" 
+                           data-course-code="${score.course_code}"
+                            onchange="updateBulkActionButton()">
+                </td>
+                <td>${index + 1}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="${score.avatar || '/static/images/default-avatar.png'}" 
+                             class="rounded-circle me-2" width="32" height="32">
+                        <div>
+                            <strong>${score.student_name}</strong>
+                            ${score.final_score < 3.0 ? '<i class="fas fa-exclamation-circle text-danger ms-1" title="Cần liên hệ gấp"></i>' : ''}
+                        </div>
+                    </div>
+                </td>
+                <td>${score.student_code}</td>
+                <td>${score.class_name}</td>
+                <td>${score.course_name} (${score.course_code})</td>
+                <td>
+                    <span class="badge bg-${score.final_score < 3.0 ? 'danger' : 'warning'}">
+                        ${score.final_score.toFixed(1)}
+                    </span>
+                </td>
+                <td>
+                    ${score.notification_sent ? 
+                        '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Đã thông báo</span>' : 
+                        '<span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>Chưa thông báo</span>'
+                    }
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" 
+                                onclick="viewStudentDetails('${score.student_id}')"
+                                title="Xem chi tiết">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-warning" 
+                                onclick="openCommentModal('${score.student_id}', '${score.student_name}', '${score.course_name}')"
+                                title="Nhận xét">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" 
+                                onclick="sendSingleNotification('${score.id}')"
+                                ${score.notification_sent ? 'disabled' : ''}
+                                title="Gửi thông báo">
+                            <i class="fas fa-bell"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Bulk Actions -->
+        <div class="d-flex justify-content-between align-items-center mt-3 p-3 bg-light rounded">
+            <div>
+                <strong>Đã chọn: <span id="selectedCount">0</span> sinh viên</strong>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-outline-danger" id="bulkExportBtn" 
+                        onclick="exportSelectedScores()" disabled>
+                    <i class="fas fa-download me-2"></i>Export đã chọn
+                </button>
+                <button class="btn btn-sm btn-warning" id="bulkReportBtn" 
+                        onclick="openReportModal()" disabled>
+                    <i class="fas fa-flag me-2"></i>Báo cáo
+                </button>
+                <button class="btn btn-sm btn-danger" id="bulkNotifyBtn" 
+                        onclick="sendBulkNotifications()" disabled>
+                    <i class="fas fa-bell me-2"></i>Gửi TB đã chọn
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    updateBulkActionButton();
+}
+
+// Cập nhật thống kê
+function updateLowScoreStats() {
+    const total = allLowScores.length;
+    const needContact = allLowScores.filter(s => s.final_score < 3.0).length;
+    const notified = allLowScores.filter(s => s.notification_sent).length;
+    
+    document.getElementById('lowScoreCount').textContent = total;
+    document.getElementById('lowScoreBadge').textContent = total;
+    document.getElementById('totalLowScores').textContent = total;
+    document.getElementById('needContactCount').textContent = needContact;
+    document.getElementById('notifiedCount').textContent = notified;
+}
+
+// Lọc danh sách
+function filterLowScores() {
+    const courseFilter = document.getElementById('courseFilter').value;
+    const classFilter = document.getElementById('classFilter').value;
+    const scoreFrom = parseFloat(document.getElementById('scoreFrom').value) || 0;
+    const scoreTo = parseFloat(document.getElementById('scoreTo').value) || 4.9;
+    
+    filteredLowScores = allLowScores.filter(score => {
+        const courseMatch = !courseFilter || score.course_code === courseFilter;
+        const classMatch = !classFilter || score.class_name === classFilter;
+        const scoreMatch = score.final_score >= scoreFrom && score.final_score <= scoreTo;
+        
+        return courseMatch && classMatch && scoreMatch;
+    });
+    
+    updateLowScoresUI();
+}
+
+// Điền dữ liệu cho bộ lọc
+function populateFilters() {
+    const courses = [...new Set(allLowScores.map(s => s.course_code))];
+    const classes = [...new Set(allLowScores.map(s => s.class_name))];
+    
+    const courseSelect = document.getElementById('courseFilter');
+    const classSelect = document.getElementById('classFilter');
+    
+    courses.forEach(course => {
+        courseSelect.innerHTML += `<option value="${course}">${course}</option>`;
+    });
+    
+    classes.forEach(className => {
+        classSelect.innerHTML += `<option value="${className}">${className}</option>`;
+    });
+}
+
+// Gửi thông báo đơn lẻ
+function sendSingleNotification(scoreId) {
+    if (confirm('Gửi thông báo điểm kém cho sinh viên này?')) {
+        fetch('/api/teacher/send-lowscore-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score_ids: [scoreId] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Đã gửi thông báo thành công', 'success');
+                loadLowScores(); // Reload để cập nhật trạng thái
+            } else {
+                showToast('Lỗi gửi thông báo: ' + data.message, 'error');
+            }
+        });
+    }
+}
+
+// Gửi thông báo hàng loạt
+function sendBulkNotifications() {
+    const selectedScores = getSelectedScores();
+    if (selectedScores.length === 0) {
+        showToast('Vui lòng chọn ít nhất một sinh viên', 'warning');
+        return;
+    }
+    
+    if (confirm(`Gửi thông báo cho ${selectedScores.length} sinh viên đã chọn?`)) {
+        fetch('/api/teacher/send-lowscore-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ score_ids: selectedScores })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Đã gửi thông báo cho ${data.sent_count} sinh viên`, 'success');
+                loadLowScores();
+            } else {
+                showToast('Lỗi gửi thông báo: ' + data.message, 'error');
+            }
+        });
+    }
+}
+
+// Gửi thông báo cho tất cả
+function sendAllLowScoreNotifications() {
+    if (confirm('Gửi thông báo cho TẤT CẢ sinh viên điểm kém?')) {
+        fetch('/api/teacher/send-all-lowscore-notifications')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadLowScores(); // Reload danh sách
+                } else {
+                    showToast('Lỗi: ' + data.message, 'error');
+                }
+            });
+    }
+}
+
+// Các hàm hỗ trợ
+function getSelectedScores() {
+    const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+    return Array.from(checkboxes).map(cb => {
+        // Lấy student_id thay vì score_id
+        const studentId = cb.getAttribute('data-student-id');
+        const courseCode = cb.getAttribute('data-course-code');
+        return { student_id: studentId, course_code: courseCode };
+    });
+}
+
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateBulkActionButton();
+}
+
+function updateBulkActionButton() {
+    const selectedCount = getSelectedScores().length;
+    const notifyBtn = document.getElementById('bulkNotifyBtn');
+    const exportBtn = document.getElementById('bulkExportBtn');
+    const reportBtn = document.getElementById('bulkReportBtn');
+    const selectedCountElement = document.getElementById('selectedCount');
+    
+    if (selectedCountElement) {
+        selectedCountElement.textContent = selectedCount;
+    }
+    
+    [notifyBtn, exportBtn, reportBtn].forEach(btn => {
+        if (btn) btn.disabled = selectedCount === 0;
+    });
+    
+    // Cập nhật text
+    if (reportBtn && selectedCount > 0) {
+        reportBtn.innerHTML = `<i class="fas fa-flag me-2"></i>Báo cáo (${selectedCount})`;
+    }
+}
+
+// Xem chi tiết sinh viên
+function viewStudentDetails(studentId) {
+    fetch(`/api/teacher/student/${studentId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const student = data.student;  // Lấy từ object student
+                document.getElementById('studentDetailContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <img src="${student.avatar || '/static/images/default-avatar.png'}" 
+                                 class="rounded-circle mb-3" width="100" height="100">
+                            <h5>${student.full_name}</h5>
+                            <p class="text-muted">${student.student_id}</p>
+                            <span class="badge bg-${student.status === 'active' ? 'success' : 'warning'}">
+                                ${student.status}
+                            </span>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Email:</strong> ${student.email || 'Chưa cập nhật'}</div>
+                                <div class="col-6"><strong>SĐT:</strong> ${student.phone || 'Chưa cập nhật'}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>Lớp:</strong> ${student.class_name}</div>
+                                <div class="col-6"><strong>Khóa:</strong> ${student.course}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-6"><strong>GPA:</strong> ${student.gpa || 'Chưa có'}</div>
+                                <div class="col-6"><strong>Mã SV:</strong> ${student.student_id}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-12"><strong>Địa chỉ:</strong> ${student.address || 'Chưa cập nhật'}</div>
+                            </div>
+                            <hr>
+                            <h6>Kết quả học tập gần đây:</h6>
+                            ${student.recent_scores && student.recent_scores.length > 0 ? 
+                                student.recent_scores.map(score => `
+                                    <div class="d-flex justify-content-between border-bottom py-1">
+                                        <span>${score.course_name}</span>
+                                        <div>
+                                            <span class="badge bg-${score.final_score >= 5 ? 'success' : 'danger'} me-2">
+                                                ${score.final_score || 'Chưa có'}
+                                            </span>
+                                            <span class="badge bg-secondary">${score.grade || 'N/A'}</span>
+                                        </div>
+                                    </div>
+                                `).join('') : 
+                                '<p class="text-muted">Chưa có dữ liệu điểm</p>'
+                            }
+                        </div>
+                    </div>
+                `;
+                new bootstrap.Modal(document.getElementById('studentDetailModal')).show();
+            } else {
+                showToast('Lỗi tải thông tin sinh viên: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Lỗi kết nối: ' + error.message, 'error');
+        });
+}
+// Liên hệ sinh viên
+function contactStudent() {
+    // Implementation for contacting student
+    showToast('Tính năng liên hệ đang được phát triển', 'info');
+}
+
+// Export
+function exportLowScores() {
+    // Implement export functionality
+    showToast('Tính năng export đang được phát triển', 'info');
+}
+
+function exportSelectedScores() {
+    const selected = getSelectedScores();
+    if (selected.length === 0) {
+        showToast('Vui lòng chọn sinh viên để export', 'warning');
+        return;
+    }
+    showToast(`Đang export ${selected.length} sinh viên...`, 'info');
+}
+
+// Tự động tải khi trang load
+document.addEventListener('DOMContentLoaded', function() {
+    loadLowScores();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'lowscore') {
+        const tab = new bootstrap.Tab(document.getElementById('lowscore-tab'));
+        tab.show();
+    }
+});
+</script>
+{% endblock %}

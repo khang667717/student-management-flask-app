@@ -1,0 +1,332 @@
+{% extends "layout.html" %}
+
+{% block title %}Trang chủ - Hệ Thống Quản Lý Sinh Viên{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    <i class="fas fa-graduation-cap me-3"></i>
+                    Hệ Thống Quản Lý Sinh Viên
+                </h1>
+                <p class="lead mb-4">
+                    Giải pháp toàn diện cho việc quản lý thông tin sinh viên, điểm số và học tập. 
+                    Hệ thống được thiết kế để phục vụ hiệu quả cho quản trị viên, giảng viên và sinh viên.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('login') }}" class="btn btn-light btn-lg px-4 py-2">
+                        <i class="fas fa-sign-in-alt me-2"></i>Đăng Nhập
+                    </a>
+                    <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg px-4 py-2">
+                        <i class="fas fa-user-plus me-2"></i>Đăng Ký
+                    </a>
+                    {% else %}
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard Admin
+                        </a>
+                        {% elif current_user.role == 'teacher' %}
+                        <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard Giảng Viên
+                        </a>
+                        {% elif current_user.role == 'student' %}
+                        <a href="{{ url_for('student.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard Sinh Viên
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                    <a href="#features" class="btn btn-outline-light btn-lg px-4 py-2">
+                        <i class="fas fa-info-circle me-2"></i>Tìm Hiểu Thêm
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section id="features" class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold text-primary mb-3">Tính Năng Nổi Bật</h2>
+            <p class="lead">Hệ thống cung cấp các tính năng toàn diện cho tất cả người dùng</p>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Admin Features -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white text-center py-3">
+                        <i class="fas fa-user-shield fa-2x mb-2"></i>
+                        <h5 class="card-title mb-0">Quản Trị Viên</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Quản lý toàn bộ sinh viên
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Phân công giảng viên
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Quản lý môn học và lớp học
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Tạo báo cáo thống kê
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Duyệt tài khoản người dùng
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Teacher Features -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-success text-white text-center py-3">
+                        <i class="fas fa-chalkboard-teacher fa-2x mb-2"></i>
+                        <h5 class="card-title mb-0">Giảng Viên</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Nhập và quản lý điểm số
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Xem danh sách sinh viên
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Thống kê điểm theo môn
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Xuất bảng điểm
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Quản lý thời khóa biểu
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Student Features -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-header bg-info text-white text-center py-3">
+                        <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                        <h5 class="card-title mb-0">Sinh Viên</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Xem điểm chi tiết
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Theo dõi kết quả học tập
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Xem thời khóa biểu
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Cập nhật thông tin cá nhân
+                            </li>
+                            <li class="list-group-item">
+                                <i class="fas fa-check text-success me-2"></i>
+                                Xem lịch thi và thông báo
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Statistics Section -->
+<section class="py-5 bg-white">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold text-primary mb-3">Thống Kê Hệ Thống</h2>
+            <p class="lead">Hệ thống đang quản lý hiệu quả thông tin học tập</p>
+        </div>
+        
+        <div class="row g-4 text-center">
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm py-4">
+                    <div class="card-body">
+                        <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                        <h3 class="fw-bold text-primary">1,250</h3>
+                        <p class="text-muted">Sinh Viên</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm py-4">
+                    <div class="card-body">
+                        <i class="fas fa-chalkboard-teacher fa-3x text-success mb-3"></i>
+                        <h3 class="fw-bold text-success">85</h3>
+                        <p class="text-muted">Giảng Viên</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm py-4">
+                    <div class="card-body">
+                        <i class="fas fa-book fa-3x text-info mb-3"></i>
+                        <h3 class="fw-bold text-info">42</h3>
+                        <p class="text-muted">Môn Học</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="card border-0 shadow-sm py-4">
+                    <div class="card-body">
+                        <i class="fas fa-university fa-3x text-warning mb-3"></i>
+                        <h3 class="fw-bold text-warning">15</h3>
+                        <p class="text-muted">Lớp Học</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="display-5 fw-bold text-primary mb-3">Cách Thức Hoạt Động</h2>
+            <p class="lead">Hệ thống được thiết kế đơn giản và dễ sử dụng</p>
+        </div>
+        
+        <div class="row g-4 align-items-center">
+            <div class="col-lg-6">
+                <div class="d-flex mb-4">
+                    <div class="flex-shrink-0">
+                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">1</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-4">
+                        <h4 class="text-primary">Đăng Ký Tài Khoản</h4>
+                        <p class="mb-0">Sinh viên đăng ký tài khoản mới với thông tin cá nhân và mã sinh viên.</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex mb-4">
+                    <div class="flex-shrink-0">
+                        <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">2</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-4">
+                        <h4 class="text-success">Quản Trị Duyệt Tài Khoản</h4>
+                        <p class="mb-0">Quản trị viên xét duyệt và kích hoạt tài khoản sinh viên.</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex mb-4">
+                    <div class="flex-shrink-0">
+                        <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">3</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-4">
+                        <h4 class="text-info">Giảng Viên Nhập Điểm</h4>
+                        <p class="mb-0">Giảng viên nhập điểm số cho sinh viên theo từng môn học.</p>
+                    </div>
+                </div>
+                
+                <div class="d-flex">
+                    <div class="flex-shrink-0">
+                        <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <span class="fw-bold">4</span>
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-4">
+                        <h4 class="text-warning">Sinh Viên Theo Dõi Kết Quả</h4>
+                        <p class="mb-0">Sinh viên đăng nhập để xem điểm và kết quả học tập.</p>
+                    </div>
+                </div>
+            </div>
+            
+            
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-5 bg-primary text-white">
+    <div class="container text-center">
+        <h2 class="display-5 fw-bold mb-4">Sẵn Sàng Trải Nghiệm?</h2>
+        <p class="lead mb-4">Tham gia hệ thống ngay hôm nay để quản lý học tập hiệu quả hơn</p>
+        
+        {% if not current_user.is_authenticated %}
+        <div class="d-flex justify-content-center flex-wrap gap-3">
+            <a href="{{ url_for('login') }}" class="btn btn-light btn-lg px-4 py-2">
+                <i class="fas fa-sign-in-alt me-2"></i>Đăng Nhập
+            </a>
+            <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg px-4 py-2">
+                <i class="fas fa-user-plus me-2"></i>Đăng Ký Tài Khoản
+            </a>
+        </div>
+        {% else %}
+        <div class="d-flex justify-content-center flex-wrap gap-3">
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">
+                <i class="fas fa-tachometer-alt me-2"></i>Truy Cập Dashboard
+            </a>
+            {% elif current_user.role == 'teacher' %}
+            <a href="{{ url_for('teacher.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">
+                <i class="fas fa-tachometer-alt me-2"></i>Truy Cập Dashboard
+            </a>
+            {% elif current_user.role == 'student' %}
+            <a href="{{ url_for('student.dashboard') }}" class="btn btn-light btn-lg px-4 py-2">
+                <i class="fas fa-tachometer-alt me-2"></i>Truy Cập Dashboard
+            </a>
+            {% endif %}
+            <a href="#features" class="btn btn-outline-light btn-lg px-4 py-2">
+                <i class="fas fa-info-circle me-2"></i>Tìm Hiểu Thêm
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.hero-section {
+    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+}
+
+.card {
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,479 @@
+{% extends "layout.html" %}
+
+{% block title %}Teacher Dashboard - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 15px;
+        border: none;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .quick-action-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .upcoming-class {
+        border-left: 4px solid;
+        padding: 10px 15px;
+        margin-bottom: 10px;
+        background-color: white;
+        border-radius: 5px;
+    }
+    
+    .task-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .task-item:last-child {
+        border-bottom: none;
+    }
+    
+    .priority-high { border-left-color: #dc3545; }
+    .priority-medium { border-left-color: #ffc107; }
+    .priority-low { border-left-color: #198754; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-tachometer-alt me-2"></i>Teacher Dashboard
+    </h1>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="fas fa-download me-2"></i>Export
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>Teaching Report</a></li>
+            <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Grade Sheet</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Welcome Card -->
+<div class="card bg-primary text-white mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="card-title">Chào mừng, {{ current_user.full_name }}!</h4>
+                <p class="card-text mb-0">
+                    <i class="fas fa-chalkboard-teacher me-2"></i>
+                    {{ stats.total_courses }} khóa học đang giảng dạy • 
+                    {{ stats.total_students }} sinh viên • 
+                    {{ stats.pending_grading }} bài cần chấm điểm
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <i class="fas fa-user-tie fa-4x opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Khóa học đang dạy
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_courses }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>2
+                            </span>
+                            <span>so với kỳ trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-primary text-white">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Tổng sinh viên
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_students }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-success me-2">
+                                <i class="fas fa-arrow-up me-1"></i>15%
+                            </span>
+                            <span>so với kỳ trước</span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-success text-white">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Bài cần chấm
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.pending_grading }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-danger me-2">
+                                <i class="fas fa-exclamation-circle me-1"></i>Urgent
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-info text-white">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Lớp sắp dạy
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.upcoming_classes }}</div>
+                        <div class="mt-2 mb-0 text-muted text-sm">
+                            <span class="text-info me-2">
+                                <i class="fas fa-clock me-1"></i>Hôm nay
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="stat-icon bg-warning text-white">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Quick Actions -->
+<div class="col-lg-4 mb-4">
+    <div class="card shadow h-100">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-primary">
+                <i class="fas fa-bolt me-2"></i>Thao Tác Nhanh
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="card quick-action-card bg-primary text-white text-center p-3" 
+                         onclick="window.location.href='{{ url_for('teacher_input_scores') }}'">
+                        <i class="fas fa-edit fa-2x mb-2"></i>
+                        <h6 class="mb-0">Nhập điểm</h6>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card quick-action-card bg-success text-white text-center p-3"
+                         onclick="window.location.href='{{ url_for('teacher_class_list') }}'">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h6 class="mb-0">DS Lớp học</h6>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card quick-action-card bg-info text-white text-center p-3"
+                         onclick="window.location.href='{{ url_for('teacher_student_list') }}'">
+                        <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                        <h6 class="mb-0">DS Sinh viên</h6>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card quick-action-card bg-warning text-white text-center p-3"
+                         onclick="window.location.href='{{ url_for('teacher_notifications') }}'">
+                        <i class="fas fa-bell fa-2x mb-2"></i>
+                        <h6 class="mb-0">Thông báo</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Upcoming Classes -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-clock me-2"></i>Lịch Dạy Sắp Tới
+                </h5>
+                <a href="#" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+            </div>
+            <div class="card-body">
+                {% for class in upcoming_classes %}
+                <div class="upcoming-class priority-{{ class.priority }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">{{ class.course_name }}</h6>
+                            <p class="mb-1 text-muted">
+                                <i class="fas fa-map-marker-alt me-1"></i>{{ class.room }}
+                                • <i class="fas fa-users me-1"></i>{{ class.student_count }} SV
+                            </p>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>{{ class.date }} 
+                                • <i class="fas fa-clock me-1"></i>{{ class.time }}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{{ 
+                                'success' if class.type == 'theory' else 
+                                'info' if class.type == 'practice' else 
+                                'warning' 
+                            }}">
+                                {{ 
+                                    'Lý thuyết' if class.type == 'theory' else 
+                                    'Thực hành' if class.type == 'practice' else 
+                                    'Seminar' 
+                                }}
+                            </span>
+                            <br>
+                            <small class="text-muted">{{ class.time_remaining }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not upcoming_classes %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Không có lịch dạy sắp tới</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Teaching Tasks and Recent Activities -->
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-tasks me-2"></i>Công Việc Cần Làm
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for task in teaching_tasks %}
+                <div class="task-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ task.title }}</h6>
+                            <p class="mb-1 text-muted">{{ task.description }}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>Hạn: {{ task.due_date }}
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <span class="badge bg-{{ 
+                                'danger' if task.priority == 'high' else 
+                                'warning' if task.priority == 'medium' else 
+                                'success' 
+                            }}">
+                                {{ 
+                                    'Cao' if task.priority == 'high' else 
+                                    'Trung bình' if task.priority == 'medium' else 
+                                    'Thấp' 
+                                }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not teaching_tasks %}
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-muted mb-0">Tất cả công việc đã hoàn thành!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-history me-2"></i>Hoạt Động Gần Đây
+                </h5>
+                <a href="#" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+            </div>
+            <div class="card-body">
+                {% for activity in recent_activities %}
+                <div class="task-item">
+                    <div class="d-flex align-items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-{{ activity.icon }} text-{{ activity.color }} fa-lg me-3"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ activity.title }}</h6>
+                            <p class="mb-1 text-muted">{{ activity.description }}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>{{ activity.time }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not recent_activities %}
+                <div class="text-center py-4">
+                    <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Chưa có hoạt động nào gần đây</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Teaching Performance -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-primary">
+                    <i class="fas fa-chart-line me-2"></i>Hiệu Suất Giảng Dạy
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-chart-bar fa-2x text-primary mb-2"></i>
+                            <h4>{{ performance.avg_score }}/10</h4>
+                            <small class="text-muted">Điểm TB môn</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-user-check fa-2x text-success mb-2"></i>
+                            <h4>{{ performance.attendance_rate }}%</h4>
+                            <small class="text-muted">Tỷ lệ chuyên cần</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-award fa-2x text-warning mb-2"></i>
+                            <h4>{{ performance.pass_rate }}%</h4>
+                            <small class="text-muted">Tỷ lệ đỗ</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="border rounded p-3">
+                            <i class="fas fa-star fa-2x text-info mb-2"></i>
+                            <h4>{{ performance.rating }}/5</h4>
+                            <small class="text-muted">Đánh giá từ SV</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// THÊM VÀO PHẦN extra_js CỦA teacher_dashboard.html
+function showClassSelectionForStudents() {
+    // Hiển thị modal hoặc chuyển hướng đến trang chọn lớp
+    window.location.href = "{{ url_for('teacher_class_list') }}";
+    
+    // Hoặc có thể hiển thị modal lựa chọn:
+    // showClassSelectionModal();
+}
+
+// Hàm hiển thị modal lựa chọn (tùy chọn)
+function showClassSelectionModal() {
+    const modalHtml = `
+        <div class="modal fade" id="classSelectionModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Chọn cách xem danh sách sinh viên</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" onclick="window.location.href='{{ url_for('teacher_student_list') }}'">
+                                <i class="fas fa-list me-2"></i>Xem tất cả sinh viên
+                            </button>
+                            <button class="btn btn-outline-success" onclick="window.location.href='{{ url_for('teacher_class_list') }}'">
+                                <i class="fas fa-users me-2"></i>Chọn từ danh sách lớp
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('classSelectionModal'));
+    modal.show();
+    
+    // Xóa modal khi đóng
+    document.getElementById('classSelectionModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+</script>
+{% endblock %}

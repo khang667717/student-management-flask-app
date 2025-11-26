@@ -1,0 +1,652 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý Môn Học - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .subject-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .subject-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .subject-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    .credit-badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    .department-badge {
+        font-size: 0.75rem;
+    }
+    
+    .prerequisite-chip {
+        background-color: #e9ecef;
+        border-radius: 15px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        margin: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-book me-2"></i>Quản lý Môn Học
+    </h1>
+    <div>
+        <!-- THÊM NÚT EXPORT PDF -->
+        <button class="btn btn-danger me-2" onclick="exportSubjectsPDF()">
+            <i class="fas fa-file-pdf me-2"></i>Export PDF
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubjectModal">
+            <i class="fas fa-plus me-2"></i>Thêm Môn Học
+        </button>
+    </div>
+</div>
+
+<!-- Subject Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card subject-card border-left-primary shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Tổng Môn Học
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_subjects }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-book fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card subject-card border-left-success shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Môn đại cương
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.general_subjects }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card subject-card border-left-info shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Môn chuyên ngành
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.major_subjects }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-laptop-code fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card subject-card border-left-warning shadow h-100">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Tín chỉ (TB)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.1f"|format(stats.avg_credits) }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calculator fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <label class="form-label">Tìm kiếm</label>
+                <input type="text" class="form-control" placeholder="Tên môn, mã môn..." id="searchInput">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Bộ môn</label>
+                <select class="form-select" id="departmentFilter">
+                    <option value="">Tất cả</option>
+                    <option value="cntt">Công nghệ thông tin</option>
+                    <option value="csdl">Cơ sở dữ liệu</option>
+                    <option value="nmhm">Nhập môn học máy </option>
+                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                    <option value="anh">Ngôn ngữ anh</option>
+                    <option value="kt">Kế Toán</option>
+                    <option value="qtkd">Quản trị kinh doanh</option>
+                    <option value="dl">Du lịch</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Loại môn</label>
+                <select class="form-select" id="typeFilter">
+                    <option value="">Tất cả</option>
+                    <option value="general">Đại cương</option>
+                    <option value="major">Chuyên ngành</option>
+                    <option value="elective">Tự chọn</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Học kỳ</label>
+                <select class="form-select" id="semesterFilter">
+                    <option value="">Tất cả</option>
+                    <option value="1">Học kỳ 1</option>
+                    <option value="2">Học kỳ 2</option>
+                    <option value="3">Học kỳ 3</option>
+                    <option value="4">Học kỳ 4</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary w-100" onclick="filterSubjects()">
+                        <i class="fas fa-filter me-2"></i>Lọc
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subjects Grid -->
+<div class="row" id="subjectsGrid">
+    {% for subject in subjects %}
+    <div class="col-xl-4 col-lg-6 mb-4 subject-item"
+         data-department="{{ subject.department }}" 
+         data-type="{{ subject.type }}"
+         data-semester="{{ subject.semester }}">
+        <div class="card subject-card shadow border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="subject-icon bg-primary text-white">
+                        <i class="fas fa-{{ subject.icon }}"></i>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                type="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="viewSubject({{ subject.id }})">
+                                    <i class="fas fa-eye me-2"></i>Xem chi tiết
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="editSubject({{ subject.id }})">
+                                    <i class="fas fa-edit me-2"></i>Chỉnh sửa
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="manageTeachers({{ subject.id }})">
+                                    <i class="fas fa-chalkboard-teacher me-2"></i>Phân công GV
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="#" 
+                                   onclick="deleteSubject({{ subject.id }}, '{{ subject.subject_name }}')">
+                                    <i class="fas fa-trash me-2"></i>Xóa môn
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h5 class="card-title text-primary mb-2">{{ subject.subject_name }}</h5>
+                <p class="text-muted small mb-3">{{ subject.description[:100] if subject.description else '' }}{% if subject.description and subject.description|length > 100 %}...{% endif %}</p>
+                
+                <div class="mb-3">
+                    <span class="badge credit-badge bg-success">
+                        <i class="fas fa-credit-card me-1"></i>{{ subject.credits }} tín chỉ
+                    </span>
+                    <span class="badge department-badge bg-info ms-1">{{ subject.department_name }}</span>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Học kỳ: {{ subject.semester }}
+                    </small>
+                    <br>
+                    <small class="text-muted">
+                        <i class="fas fa-tag me-1"></i>
+                        Loại: 
+                        <span class="badge bg-{{ 'primary' if subject.type == 'major' else 'secondary' if subject.type == 'general' else 'warning' }}">
+                            {{ 'Chuyên ngành' if subject.type == 'major' else 'Đại cương' if subject.type == 'general' else 'Tự chọn' }}
+                        </span>
+                    </small>
+                </div>
+                
+                {% if subject.prerequisites_list %}
+                <div class="mb-3">
+                    <small class="text-muted d-block mb-1">Môn học trước:</small>
+                    <div class="d-flex flex-wrap">
+                        {% for prereq in subject.prerequisites_list[:2] %}
+                        <span class="prerequisite-chip">{{ prereq }}</span>
+                        {% endfor %}
+                        {% if subject.prerequisites_list|length > 2 %}
+                        <span class="prerequisite-chip">+{{ subject.prerequisites_list|length - 2 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-chalkboard-teacher me-1"></i>
+                        {{ subject.teacher_count }} GV
+                    </small>
+                    <small class="text-muted">
+                        <i class="fas fa-user-graduate me-1"></i>
+                        {{ subject.student_count }} SV
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add Subject Modal -->
+<div class="modal fade" id="addSubjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Thêm Môn Học Mới
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_subject') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mã môn học *</label>
+                                <input type="text" class="form-control" name="subject_code" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tên môn học *</label>
+                                <input type="text" class="form-control" name="subject_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số tín chỉ *</label>
+                                <input type="number" class="form-control" name="credits" min="1" max="10" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Học kỳ *</label>
+                                <select class="form-select" name="semester" required>
+                                    <option value="">Chọn học kỳ</option>
+                                    {% for i in range(1, 9) %}
+                                    <option value="{{ i }}">Học kỳ {{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Bộ môn *</label>
+                                <select class="form-select" name="department" required>
+                                    <option value="">Chọn bộ môn</option>
+                                    <option value="cntt">Công nghệ thông tin</option>
+                                    <option value="csdl">Cơ sở dữ liệu</option>
+                                    <option value="nmhm">Nhập môn học máy</option>
+                                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                                    <option value="anh">Ngôn ngữ anh</option>
+                                    <option value="kt">Kế Toán</option>
+                                    <option value="qtkd">Quản trị kinh doanh</option>
+                                    <option value="dl">Du lịch</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Loại môn *</label>
+                                <select class="form-select" name="type" required>
+                                    <option value="">Chọn loại môn</option>
+                                    <option value="general">Đại cương</option>
+                                    <option value="major">Chuyên ngành</option>
+                                    <option value="elective">Tự chọn</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số tiết lý thuyết</label>
+                                <input type="number" class="form-control" name="theory_hours" value="30">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số tiết thực hành</label>
+                                <input type="number" class="form-control" name="practice_hours" value="15">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả môn học</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Mô tả về môn học..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Môn học trước</label>
+                        <select class="form-select" name="prerequisites" multiple>
+                            {% for subject in all_subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.code }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Giữ Ctrl để chọn nhiều môn</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Thêm Môn Học</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Edit Subject Modal -->
+<div class="modal fade" id="editSubjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Chỉnh sửa Môn Học
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editSubjectForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="edit_subject_id" name="subject_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mã môn học *</label>
+                                <input type="text" class="form-control" id="edit_subject_code" name="subject_code" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tên môn học *</label>
+                                <input type="text" class="form-control" id="edit_subject_name" name="subject_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số tín chỉ *</label>
+                                <input type="number" class="form-control" id="edit_credits" name="credits" min="1" max="10" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Học kỳ *</label>
+                                <select class="form-select" id="edit_semester" name="semester" required>
+                                    {% for i in range(1, 9) %}
+                                    <option value="{{ i }}">Học kỳ {{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Bộ môn *</label>
+                                <select class="form-select" id="edit_department" name="department" required>
+                                    <option value="cntt">Công nghệ thông tin</option>
+                                    <option value="csdl">Cơ sở dữ liệu</option>
+                                    <option value="nmhm">Nhập môn học máy</option>
+                                    <option value="ptdll">Phân tích dữ liệu lớn</option>
+                                    <option value="nn">Ngôn ngữ anh</option>
+                                    <option value="kt">Kế Toán</option>
+                                    <option value="qtkd">Quản trị kinh doanh</option>
+                                    <option value="dl">Du lịch</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Loại môn *</label>
+                                <select class="form-select" id="edit_type" name="type" required>
+                                    <option value="general">Đại cương</option>
+                                    <option value="major">Chuyên ngành</option>
+                                    <option value="elective">Tự chọn</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số tiết lý thuyết</label>
+                                <input type="number" class="form-control" id="edit_theory_hours" name="theory_hours" value="30">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số tiết thực hành</label>
+                                <input type="number" class="form-control" id="edit_practice_hours" name="practice_hours" value="15">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mô tả môn học</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3" placeholder="Mô tả về môn học..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning">Cập nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+
+function exportSubjectsPDF() {
+    // Hiển thị loading
+    const originalText = event.target.innerHTML;
+    event.target.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang tạo PDF...';
+    event.target.disabled = true;
+    
+    // Lấy các bộ lọc hiện tại
+    const searchText = document.getElementById('searchInput').value;
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const typeFilter = document.getElementById('typeFilter').value;
+    const semesterFilter = document.getElementById('semesterFilter').value;
+    
+    // Tạo URL với các tham số bộ lọc
+    let url = `/admin/subjects/export-pdf?`;
+    const params = new URLSearchParams();
+    
+    if (searchText) params.append('search', searchText);
+    if (departmentFilter) params.append('department', departmentFilter);
+    if (typeFilter) params.append('type', typeFilter);
+    if (semesterFilter) params.append('semester', semesterFilter);
+    
+    url += params.toString();
+    
+    // Mở trong tab mới để tải file PDF
+    window.open(url, '_blank');
+    
+    // Khôi phục trạng thái nút
+    setTimeout(() => {
+        event.target.innerHTML = originalText;
+        event.target.disabled = false;
+    }, 2000);
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('departmentFilter').value = '';
+    document.getElementById('typeFilter').value = '';
+    document.getElementById('semesterFilter').value = '';
+    filterSubjects();
+}
+
+function filterSubjects() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const typeFilter = document.getElementById('typeFilter').value;
+    const semesterFilter = document.getElementById('semesterFilter').value;
+    
+    const subjectItems = document.querySelectorAll('.subject-item');
+    
+    subjectItems.forEach(item => {
+        const name = item.textContent.toLowerCase();
+        const department = item.dataset.department;
+        const type = item.dataset.type;
+        const semester = item.dataset.semester;
+        
+        const matchesSearch = name.includes(searchText);
+        const matchesDepartment = !departmentFilter || department === departmentFilter;
+        const matchesType = !typeFilter || type === typeFilter;
+        const matchesSemester = !semesterFilter || semester === semesterFilter;
+        
+        item.style.display = (matchesSearch && matchesDepartment && matchesType && matchesSemester) ? 'block' : 'none';
+    });
+}
+
+function viewSubject(subjectId) {
+    alert('Xem chi tiết môn học: ' + subjectId);
+    // Implement view subject details
+}
+
+
+
+function manageTeachers(subjectId) {
+    alert('Phân công giáo viên cho môn học: ' + subjectId);
+    // Implement manage teachers
+}
+
+// Thêm vào phần extra_js
+async function editSubject(subjectId) {
+    try {
+        const response = await fetch(`/admin/subjects/edit/${subjectId}`);
+        if (response.ok) {
+            const subjectData = await response.json();
+            
+            // Điền dữ liệu vào form
+            document.getElementById('edit_subject_id').value = subjectId;
+            document.getElementById('edit_subject_code').value = subjectData.subject_code;
+            document.getElementById('edit_subject_name').value = subjectData.subject_name;
+            document.getElementById('edit_credits').value = subjectData.credits;
+            document.getElementById('edit_semester').value = subjectData.semester;
+            document.getElementById('edit_department').value = subjectData.department;
+            document.getElementById('edit_type').value = subjectData.type;
+            document.getElementById('edit_theory_hours').value = subjectData.theory_hours;
+            document.getElementById('edit_practice_hours').value = subjectData.practice_hours;
+            document.getElementById('edit_description').value = subjectData.description || '';
+            
+            // Hiển thị modal
+            const editModal = new bootstrap.Modal(document.getElementById('editSubjectModal'));
+            editModal.show();
+        } else {
+            alert('Lỗi khi tải thông tin môn học');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi tải thông tin môn học');
+    }
+}
+
+async function deleteSubject(subjectId, subjectName) {
+    if (!confirm(`Bạn có chắc muốn xóa môn học "${subjectName}"?`)) {
+        return;
+    }
+
+    try {
+        // Lấy CSRF token từ form edit (đã có sẵn)
+        const csrfToken = document.querySelector('#editSubjectForm [name="csrf_token"]')?.value 
+                         || document.querySelector('[name="csrf_token"]')?.value;
+
+        if (!csrfToken) {
+            alert('Lỗi bảo mật. Vui lòng thử lại.');
+            return;
+        }
+
+        const response = await fetch(`/admin/subjects/delete/${subjectId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi xóa môn học');
+    }
+}
+
+
+// Xử lý form sửa môn học
+document.getElementById('editSubjectForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const subjectId = document.getElementById('edit_subject_id').value;
+    
+    try {
+        const response = await fetch(`/admin/subjects/edit/${subjectId}`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi cập nhật môn học');
+    }
+});
+
+// Event listeners for filters
+document.getElementById('searchInput').addEventListener('input', filterSubjects);
+document.getElementById('departmentFilter').addEventListener('change', filterSubjects);
+document.getElementById('typeFilter').addEventListener('change', filterSubjects);
+document.getElementById('semesterFilter').addEventListener('change', filterSubjects);
+</script>
+{% endblock %}

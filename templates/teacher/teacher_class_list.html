@@ -1,0 +1,508 @@
+{% extends "layout.html" %}
+
+{% block title %}Danh sách Lớp Học - Teacher{% endblock %}
+
+{% block extra_css %}
+<style>
+    .class-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .class-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .class-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .student-count {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    .progress-container {
+        height: 6px;
+        background-color: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+    
+    .view-toggle {
+        cursor: pointer;
+    }
+    
+    .view-toggle.active {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-users me-2"></i>Danh sách Lớp Học
+    </h1>
+    <div>
+        <div class="btn-group me-2">
+            <button class="btn btn-outline-primary view-toggle active" data-view="grid">
+                <i class="fas fa-th me-2"></i>Grid
+            </button>
+            <button class="btn btn-outline-primary view-toggle" data-view="list">
+                <i class="fas fa-list me-2"></i>List
+            </button>
+        </div>
+        <!-- Sửa onclick thành showExportModal() -->
+        
+    </div>
+</div>
+
+<!-- Thêm modal xác nhận export -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-export me-2"></i>Xuất Danh Sách Lớp
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Chọn định dạng xuất file:</p>
+                <div class="d-grid gap-2">
+                    <!-- Sửa onclick để đóng modal trước khi export -->
+                    <button class="btn btn-danger" onclick="closeAndExport('pdf')">
+                        <i class="fas fa-file-pdf me-2"></i>Xuất PDF
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <label class="form-label">Tìm kiếm lớp học</label>
+                <input type="text" class="form-control" placeholder="Tên lớp, mã môn..." id="searchInput">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Học kỳ</label>
+                <select class="form-select" id="semesterFilter">
+                    <option value="">Tất cả học kỳ</option>
+                    <option value="1">Học kỳ 1</option>
+                    <option value="2">Học kỳ 2</option>
+                    <option value="3">Học kỳ 3 (Hè)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="active">Đang học</option>
+                    <option value="upcoming">Sắp bắt đầu</option>
+                    <option value="completed">Đã kết thúc</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                    <i class="fas fa-redo me-2"></i>Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grid View -->
+<div id="gridView">
+    <div class="row" id="classesGrid">
+        {% for class in classes %}
+        <div class="col-xl-4 col-lg-6 mb-4 class-item"
+             data-semester="{{ class.semester }}"
+             data-status="{{ class.status }}">
+            <div class="card class-card shadow border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="class-icon bg-primary text-white">
+                            <i class="fas fa-{{ class.icon }}"></i>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                    type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="viewClassDetails({{ class.id }})">
+                                        <i class="fas fa-eye me-2"></i>Xem chi tiết
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('teacher_student_list', class_id=class.id) }}">
+                                        <i class="fas fa-user-graduate me-2"></i>DS Sinh viên
+                                    </a>
+                                </li>
+                                <li>
+                                    
+                                    <a class="dropdown-item" href="{{ url_for('teacher_input_scores', class_id=class.id) }}">
+
+                                        <i class="fas fa-edit me-2"></i>Nhập điểm
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-calendar-alt me-2"></i>Lịch dạy
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-file-export me-2"></i>Export điểm
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h5 class="card-title text-primary mb-2">{{ class.course_name }}</h5>
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-code me-1"></i>{{ class.course_code }}
+                        • <i class="fas fa-user-tie me-1"></i>{{ class.teacher_role }}
+                    </p>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Tiến độ học tập</small>
+                            <small class="text-muted">{{ class.completed_weeks }}/{{ class.total_weeks }} tuần</small>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar bg-success" style="width: {{ (class.completed_weeks / class.total_weeks * 100) }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="student-count text-primary">{{ class.student_count }}</div>
+                            <small class="text-muted">Sinh viên</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="h4 text-success">{{ "%.2f"|format(class.avg_score or 0) }}</div>
+                            <small class="text-muted">Điểm TB</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="badge bg-secondary">HK{{ class.semester }}</span>
+                        <span class="badge bg-{{ 
+                            'success' if class.status == 'active' else 
+                            'primary' if class.status == 'upcoming' else 
+                            'secondary' 
+                        }}">
+                            {{ 
+                                'Đang học' if class.status == 'active' else 
+                                'Sắp bắt đầu' if class.status == 'upcoming' else 
+                                'Đã kết thúc' 
+                            }}
+                        </span>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted d-block">
+                            <i class="fas fa-calendar me-1"></i>
+                            {{ class.schedule }}
+                        </small>
+                        <small class="text-muted d-block">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            {{ class.room }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- List View (Hidden by default) -->
+<div id="listView" style="display: none;">
+    <div class="card shadow">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-primary">
+                <i class="fas fa-list me-2"></i>Danh sách Lớp Học
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã lớp</th>
+                            <th>Tên môn học</th>
+                            <th>Học kỳ</th>
+                            <th>Số SV</th>
+                            <th>Điểm TB</th>
+                            <th>Lịch học</th>
+                            <th>Phòng</th>
+                            <th>Trạng thái</th>
+                            <th width="120">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in classes %}
+                        <tr>
+                            <td><strong class="text-primary">{{ class.course_code }}</strong></td>
+                            <td>{{ class.course_name }}</td>
+                            <td>HK{{ class.semester }}</td>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">{{ class.student_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if class.avg_score >= 5.0 else 'warning' }}">
+                                    {{ "%.2f"|format(class.avg_score or 0) }}
+                                </span>
+                            </td>
+                            <td>{{ class.schedule }}</td>
+                            <td>{{ class.room }}</td>
+                            <td>
+                                <span class="badge bg-{{ 
+                                    'success' if class.status == 'active' else 
+                                    'primary' if class.status == 'upcoming' else 
+                                    'secondary' 
+                                }}">
+                                    {{ 
+                                        'Đang học' if class.status == 'active' else 
+                                        'Sắp bắt đầu' if class.status == 'upcoming' else 
+                                        'Đã kết thúc' 
+                                    }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="viewClassDetails({{ class.id }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <a class="btn btn-outline-info" href="{{ url_for('teacher_student_list', course_id=class.id) }}">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </a>
+                                    <a class="btn btn-outline-warning" href="{{ url_for('teacher_input_scores', class_id=class.id) }}">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Thêm hàm xem chi tiết lớp
+async function viewClassDetails(classId) {
+    try {
+        const response = await fetch(`/api/teacher/class/${classId}/details`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Hiển thị modal chi tiết lớp
+            showClassDetailsModal(result.class);
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Lỗi khi tải thông tin lớp học');
+    }
+}
+
+function showClassDetailsModal(classData) {
+    // Tạo và hiển thị modal chi tiết
+    const modalHtml = `
+        <div class="modal fade" id="classDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">${classData.class_name}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Mã lớp:</strong> ${classData.class_code}</p>
+                                <p><strong>Khóa:</strong> ${classData.course}</p>
+                                <p><strong>Khoa:</strong> ${classData.faculty}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Số SV:</strong> ${classData.current_students}/${classData.max_students}</p>
+                                <p><strong>Số môn:</strong> ${classData.courses.length}</p>
+                            </div>
+                        </div>
+                        <hr>
+                        <h6>Danh sách môn học</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Mã môn</th>
+                                        <th>Tên môn</th>
+                                        <th>Học kỳ</th>
+                                        <th>Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${classData.courses.map(course => `
+                                        <tr>
+                                            <td>${course.course_code}</td>
+                                            <td>${course.subject_name}</td>
+                                            <td>HK${course.semester}</td>
+                                            <td><span class="badge bg-${getStatusColor(course.status)}">${getStatusText(course.status)}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="${url_for('teacher_student_list', class_id=classData.id)}" class="btn btn-primary">
+                            <i class="fas fa-users me-2"></i>Xem DS Sinh viên
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Thêm modal vào DOM và hiển thị
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('classDetailsModal'));
+    modal.show();
+    
+    // Xóa modal khi đóng
+    document.getElementById('classDetailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'active': 'success',
+        'upcoming': 'primary', 
+        'completed': 'secondary',
+        'cancelled': 'danger'
+    };
+    return colors[status] || 'secondary';
+}
+
+function getStatusText(status) {
+    const texts = {
+        'active': 'Đang học',
+        'upcoming': 'Sắp bắt đầu',
+        'completed': 'Đã kết thúc',
+        'cancelled': 'Đã hủy'
+    };
+    return texts[status] || status;
+}
+// View Toggle
+document.querySelectorAll('.view-toggle').forEach(button => {
+    button.addEventListener('click', function() {
+        // Update active state
+        document.querySelectorAll('.view-toggle').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.classList.add('active');
+        
+        // Show/hide views
+        const view = this.dataset.view;
+        if (view === 'grid') {
+            document.getElementById('gridView').style.display = 'block';
+            document.getElementById('listView').style.display = 'none';
+        } else {
+            document.getElementById('gridView').style.display = 'none';
+            document.getElementById('listView').style.display = 'block';
+        }
+    });
+});
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('semesterFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterClasses();
+}
+
+function filterClasses() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const semesterFilter = document.getElementById('semesterFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const classItems = document.querySelectorAll('.class-item');
+    
+    classItems.forEach(item => {
+        const name = item.textContent.toLowerCase();
+        const semester = item.dataset.semester;
+        const status = item.dataset.status;
+        
+        const matchesSearch = name.includes(searchText);
+        const matchesSemester = !semesterFilter || semester === semesterFilter;
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        item.style.display = (matchesSearch && matchesSemester && matchesStatus) ? 'block' : 'none';
+    });
+}
+
+function viewClassDetails(classId) {
+    alert('Xem chi tiết lớp: ' + classId);
+    // Implement view class details
+}
+
+// Thay thế hàm exportClassList cũ
+function exportClassList(format = 'pdf') {
+    if (format === 'pdf') {
+        // Export PDF
+        window.location.href = "{{ url_for('export_teacher_classes_pdf') }}";
+    }
+}
+
+// Cập nhật nút export
+function showExportModal() {
+    const modal = new bootstrap.Modal(document.getElementById('exportModal'));
+    modal.show();
+}
+
+// Cập nhật sự kiện click cho nút export
+document.querySelector('button[onclick="exportClassList()"]').setAttribute('onclick', 'showExportModal()');
+
+// Event listeners for filters
+document.getElementById('searchInput').addEventListener('input', filterClasses);
+document.getElementById('semesterFilter').addEventListener('change', filterClasses);
+document.getElementById('statusFilter').addEventListener('change', filterClasses);
+</script>
+{% endblock %}

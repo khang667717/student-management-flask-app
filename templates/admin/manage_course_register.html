@@ -1,0 +1,874 @@
+
+{% extends "layout.html" %}
+
+{% block title %}Quản lý Đăng ký Học phần - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .registration-card {
+        border: none;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    .registration-checkbox {
+    cursor: pointer;
+}
+    /* Toast notifications */
+    .toast-container {
+    z-index: 9999;
+}
+
+    .toast {
+    backdrop-filter: blur(10px);
+}
+/* Optional: màu sắc nhẹ cho các trạng thái khác nhau */
+    tr[data-status="approved"] .registration-checkbox {
+    border-color: #28a745;
+}
+
+    tr[data-status="pending"] .registration-checkbox {
+    border-color: #ffc107;
+}
+
+    tr[data-status="rejected"] .registration-checkbox {
+    border-color: #dc3545;
+}
+    .registration-card:hover {
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+    }
+    
+    .action-buttons {
+        white-space: nowrap;
+    }
+    
+    .student-avatar-sm {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .registration-stats {
+        font-size: 0.9rem;
+    }
+    
+    .course-info-card {
+        border-left: 4px solid #0d6efd;
+    }
+    tr.selected {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    border-left: 3px solid #0d6efd;
+}
+
+    .registration-checkbox:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+    .registration-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Style cho indeterminate state */
+    input[type="checkbox"]:indeterminate {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+} 
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-clipboard-list me-2"></i>Quản lý Đăng ký Học phần
+    </h1>
+    <div>
+        <a class="btn btn-success me-2" href="{{ url_for('export_registrations_excel') }}">
+            <i class="fas fa-file-export me-2"></i>Export Excel
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registrationSettingsModal">
+            <i class="fas fa-cog me-2"></i>Cài đặt
+        </button>
+    </div>
+</div>
+
+
+<!-- Registration Overview -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card registration-card bg-primary text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.total_registrations }}</h4>
+                <small>Tổng đăng ký</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card registration-card bg-success text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.approved_registrations }}</h4>
+                <small>Đã duyệt</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card registration-card bg-warning text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.pending_registrations }}</h4>
+                <small>Chờ duyệt</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card registration-card bg-danger text-white">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ stats.rejected_registrations }}</h4>
+                <small>Đã từ chối</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Course Selection -->
+<div class="card course-info-card shadow mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h5 class="text-primary mb-2">Chọn khóa học để xem đăng ký</h5>
+                <select class="form-select" id="courseSelect" onchange="loadCourseRegistrations()">
+                    <option value="">-- Chọn khóa học --</option>
+                    {% for course in courses %}
+                    <option value="{{ course.id }}" data-max="{{ course.max_students }}" data-registered="{{ course.approved_students }}" data-total="{{ course.registered_students }}">
+                        {{ course.course_code }} - {{ course.subject_name }} ({{ course.approved_students }}/{{ course.max_students }})
+                        - Tổng ĐK: {{ course.registered_students }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <div class="registration-stats">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Đã đăng ký:</span>
+                        <span id="registeredCount">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Sức chứa tối đa:</span>
+                        <span id="maxCapacity">0</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Tỷ lệ lấp đầy:</span>
+                        <span id="fillRate">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-section">
+    <div class="row g-3 align-items-center">
+        <div class="col-md-3">
+            <label class="form-label">Tìm kiếm sinh viên</label>
+            <input type="text" class="form-control" placeholder="Mã SV, tên..." id="studentSearch">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Trạng thái</label>
+            <select class="form-select" id="statusFilter">
+                <option value="">Tất cả</option>
+                <option value="pending">Chờ duyệt</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Đã từ chối</option>
+                <option value="cancelled">Đã hủy</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Ngày đăng ký</label>
+            <input type="date" class="form-control" id="dateFilter">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Lớp</label>
+            <select class="form-select" id="classFilter">
+                <option value="">Tất cả lớp</option>
+                <option value="CT1">CT1</option>
+                <option value="CT2">CT2</option>
+                <option value="CT3">CT3</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary w-100" onclick="filterRegistrations()">
+                    <i class="fas fa-filter me-2"></i>Lọc
+                </button>
+                <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Batch Actions -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <button class="btn btn-success btn-sm me-2" onclick="batchApprove()">
+            <i class="fas fa-check me-1"></i>Duyệt chọn
+        </button>
+        <button class="btn btn-danger btn-sm me-2" onclick="batchReject()">
+            <i class="fas fa-times me-1"></i>Từ chối chọn
+        </button>
+        <button class="btn btn-warning btn-sm" onclick="batchCancel()">
+            <i class="fas fa-ban me-1"></i>Hủy chọn
+        </button>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="selectAllRegistrations">
+        <label class="form-check-label" for="selectAllRegistrations">
+            Chọn tất cả
+        </label>
+    </div>
+</div>
+
+<!-- Registrations Table -->
+<div class="card shadow">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-list me-2"></i>Danh sách Đăng ký
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="registrationsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>STT</th>
+                        <th>Sinh viên</th>
+                        <th>Mã SV</th>
+                        <th>Lớp</th>
+                        <th>Ngày đăng ký</th>
+                        <th>Trạng thái</th>
+                        <th>Ghi chú</th>
+                        <th width="150" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="registrationsBody">
+                    {% for registration in registrations %}
+                    <tr data-status="{{ registration.status }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input registration-checkbox" 
+                                   value="{{ registration.id }}" 
+                                   {% if registration.status == 'cancelled' %}disabled{% endif %}>
+
+                                   
+                        </td>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ registration.student.user.avatar or url_for('static', filename='images/default-avatar.png') }}" 
+                                     alt="Avatar" class="student-avatar-sm me-2">
+                                <span>{{ registration.student.user.full_name }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="text-primary">{{ registration.student.student_id }}</strong>
+                        </td>
+                        <td>
+                            {% if registration.student.classes %}
+                                {% for class in registration.student.classes %}
+                                    <span class="badge bg-secondary">{{ class.class_name }}</span>
+                                {% endfor %}
+                            {% else %}
+                               <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ registration.registration_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>
+                            {% if registration.status == 'approved' %}
+                                <span class="badge status-badge bg-success">Đã duyệt</span>
+                            {% elif registration.status == 'rejected' %}
+                                <span class="badge status-badge bg-danger">Đã từ chối</span>
+                            {% elif registration.status == 'cancelled' %}
+                                <span class="badge status-badge bg-secondary">Đã hủy</span>
+                            {% else %}
+                                <span class="badge status-badge bg-warning">Chờ duyệt</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ registration.notes or '--' }}</small>
+                        </td>
+                        <td class="text-center action-buttons">
+                            <div class="btn-group btn-group-sm">
+                                {% if registration.status == 'pending' %}
+                                <button class="btn btn-outline-success"
+                                        data-bs-toggle="tooltip"
+                                        title="Duyệt đăng ký"
+                                        onclick="approveRegistration({{ registration.id }})">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-outline-danger"
+                                        data-bs-toggle="tooltip"
+                                        title="Từ chối"
+                                        onclick="rejectRegistration({{ registration.id }})">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                                {% if registration.status == 'cancelled' %}
+                                <button class="btn btn-outline-success btn-sm"
+                                        data-bs-toggle="tooltip"
+                                        title="Khôi phục đăng ký"
+                                        onclick="restoreRegistration({{ registration.id }})">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-outline-info"
+                                        data-bs-toggle="tooltip"
+                                        title="Xem chi tiết"
+                                        onclick="viewRegistration({{ registration.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-warning"
+                                        data-bs-toggle="tooltip"
+                                        title="Ghi chú"
+                                        onclick="addNote({{ registration.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Registration Settings Modal -->
+<div class="modal fade" id="registrationSettingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog me-2"></i>Cài đặt Đăng ký Học phần
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Thời gian mở đăng ký</label>
+                    <div class="input-group">
+                        <input type="datetime-local" class="form-control" id="registrationStart">
+                        <span class="input-group-text">đến</span>
+                        <input type="datetime-local" class="form-control" id="registrationEnd">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Số tín chỉ tối đa/học kỳ</label>
+                    <input type="number" class="form-control" value="18" min="12" max="24">
+                </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="autoApprove" checked>
+                    <label class="form-check-label" for="autoApprove">
+                        Tự động duyệt đăng ký (nếu đủ điều kiện)
+                    </label>
+                </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="checkPrerequisites">
+                    <label class="form-check-label" for="checkPrerequisites">
+                        Kiểm tra môn học trước
+                    </label>
+                </div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="allowOverload">
+                    <label class="form-check-label" for="allowOverload">
+                        Cho phép vượt quá sức chứa (10%)
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary">Lưu cài đặt</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Khởi tạo khi trang load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Gắn sự kiện cho checkbox
+    initializeCheckboxHandlers();
+});
+
+// Hàm khởi tạo checkbox handlers - ĐÃ SỬA
+function initializeCheckboxHandlers() {
+    const selectAll = document.getElementById('selectAll');
+    const selectAllRegistrations = document.getElementById('selectAllRegistrations');
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.registration-checkbox:not(:disabled)');
+            const externalSelectAll = document.getElementById('selectAllRegistrations');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                // Cập nhật trạng thái selected cho row
+                const row = checkbox.closest('tr');
+                if (this.checked) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            });
+            
+            if (externalSelectAll) {
+                externalSelectAll.checked = this.checked;
+            }
+            
+            updateSelectAllState();
+        });
+    }
+
+    if (selectAllRegistrations) {
+        selectAllRegistrations.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.registration-checkbox:not(:disabled)');
+            const selectAllHeader = document.getElementById('selectAll');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+                // Cập nhật trạng thái selected cho row
+                const row = checkbox.closest('tr');
+                if (this.checked) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            });
+            
+            if (selectAllHeader) {
+                selectAllHeader.checked = this.checked;
+            }
+            
+            updateSelectAllState();
+        });
+    }
+
+    // Xử lý sự kiện change cho từng checkbox
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('registration-checkbox')) {
+            updateSelectAllState();
+            
+            // Cập nhật trạng thái selected cho row
+            const row = e.target.closest('tr');
+            if (e.target.checked) {
+                row.classList.add('selected');
+            } else {
+                row.classList.remove('selected');
+            }
+        }
+    });
+}
+
+// Hàm cập nhật trạng thái "Chọn tất cả" - ĐÃ SỬA
+function updateSelectAllState() {
+    const checkboxes = document.querySelectorAll('.registration-checkbox:not(:disabled)');
+    const selectAll = document.getElementById('selectAll');
+    const selectAllRegistrations = document.getElementById('selectAllRegistrations');
+    
+    if (checkboxes.length === 0) {
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+        if (selectAllRegistrations) {
+            selectAllRegistrations.checked = false;
+            selectAllRegistrations.indeterminate = false;
+        }
+        return;
+    }
+    
+    const checkedCount = document.querySelectorAll('.registration-checkbox:not(:disabled):checked').length;
+    const allChecked = checkedCount === checkboxes.length;
+    const someChecked = checkedCount > 0 && checkedCount < checkboxes.length;
+    
+    if (selectAll) {
+        selectAll.checked = allChecked;
+        selectAll.indeterminate = someChecked;
+    }
+    
+    if (selectAllRegistrations) {
+        selectAllRegistrations.checked = allChecked;
+        selectAllRegistrations.indeterminate = someChecked;
+    }
+}
+
+// Hàm lấy danh sách đăng ký được chọn - ĐÃ SỬA QUAN TRỌNG
+function getSelectedRegistrations() {
+    const checkboxes = document.querySelectorAll('.registration-checkbox:not(:disabled):checked');
+    return Array.from(checkboxes).map(checkbox => checkbox.value);
+}
+
+// Hàm batch approve hoàn chỉnh
+async function batchApprove() {
+    const selectedRegistrations = getSelectedRegistrations();
+    if (selectedRegistrations.length === 0) {
+        showNotification('Vui lòng chọn ít nhất một đăng ký để duyệt', 'warning');
+        return;
+    }
+    
+    if (confirm(`Bạn có chắc muốn DUYỆT ${selectedRegistrations.length} đăng ký đã chọn?`)) {
+        try {
+            const response = await fetch('/api/registration/batch-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    registration_ids: selectedRegistrations,
+                    status: 'approved',
+                    reason: 'Đã duyệt hàng loạt bởi quản trị viên'
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showNotification(`✅ Đã duyệt thành công ${result.success_count} đăng ký`, 'success');
+                // Reload sau 2 giây để hiển thị thay đổi
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showNotification(`❌ ${result.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('❌ Lỗi khi duyệt hàng loạt', 'error');
+        }
+    }
+}
+
+// Hàm batch reject hoàn chỉnh
+async function batchReject() {
+    const selectedRegistrations = getSelectedRegistrations();
+    if (selectedRegistrations.length === 0) {
+        showNotification('Vui lòng chọn ít nhất một đăng ký để từ chối', 'warning');
+        return;
+    }
+    
+    const reason = prompt('Lý do từ chối (áp dụng cho tất cả đăng ký đã chọn):');
+    if (reason === null) return; // User cancelled
+    
+    if (!reason.trim()) {
+        showNotification('Vui lòng nhập lý do từ chối', 'warning');
+        return;
+    }
+    
+    if (confirm(`Bạn có chắc muốn TỪ CHỐI ${selectedRegistrations.length} đăng ký đã chọn?`)) {
+        try {
+            const response = await fetch('/api/registration/batch-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    registration_ids: selectedRegistrations,
+                    status: 'rejected',
+                    reason: reason
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showNotification(`❌ Đã từ chối ${result.success_count} đăng ký`, 'warning');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showNotification(`❌ ${result.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('❌ Lỗi khi từ chối hàng loạt', 'error');
+        }
+    }
+}
+
+// Hàm batch cancel hoàn chỉnh
+async function batchCancel() {
+    const selectedRegistrations = getSelectedRegistrations();
+    if (selectedRegistrations.length === 0) {
+        showNotification('Vui lòng chọn ít nhất một đăng ký để hủy', 'warning');
+        return;
+    }
+    
+    const reason = prompt('Lý do hủy (áp dụng cho tất cả đăng ký đã chọn):');
+    if (reason === null) return; // User cancelled
+    
+    if (!reason.trim()) {
+        showNotification('Vui lòng nhập lý do hủy', 'warning');
+        return;
+    }
+    
+    if (confirm(`Bạn có chắc muốn HỦY ${selectedRegistrations.length} đăng ký đã chọn?\n\nLƯU Ý: Hành động này không thể hoàn tác.`)) {
+        try {
+            const response = await fetch('/api/registration/batch-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    registration_ids: selectedRegistrations,
+                    status: 'cancelled',
+                    reason: reason
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showNotification(`🚫 Đã hủy ${result.success_count} đăng ký`, 'info');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showNotification(`❌ ${result.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('❌ Lỗi khi hủy hàng loạt', 'error');
+        }
+    }
+}
+
+// Hàm hiển thị notification
+function showNotification(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${getBootstrapColor(type)} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+    bsToast.show();
+}
+
+function getBootstrapColor(type) {
+    const colors = {
+        'success': 'success',
+        'error': 'danger',
+        'warning': 'warning',
+        'info': 'info'
+    };
+    return colors[type] || 'info';
+}
+
+// Các hàm khác giữ nguyên
+function loadCourseRegistrations() {
+    const courseSelect = document.getElementById('courseSelect');
+    if (!courseSelect) return;
+    
+    const selectedOption = courseSelect.options[courseSelect.selectedIndex];
+    
+    if (selectedOption.value) {
+        const maxCapacity = selectedOption.dataset.max;
+        const totalCount = selectedOption.dataset.total;
+        
+        const fillRate = ((totalCount / maxCapacity) * 100).toFixed(1);
+        
+        document.getElementById('registeredCount').textContent = totalCount;
+        document.getElementById('maxCapacity').textContent = maxCapacity;
+        document.getElementById('fillRate').textContent = fillRate + '%';
+    } else {
+        document.getElementById('registeredCount').textContent = '0';
+        document.getElementById('maxCapacity').textContent = '0';
+        document.getElementById('fillRate').textContent = '0%';
+    }
+}
+
+function resetFilters() {
+    document.getElementById('studentSearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('dateFilter').value = '';
+    document.getElementById('classFilter').value = '';
+    filterRegistrations();
+}
+
+function filterRegistrations() {
+    const searchText = document.getElementById('studentSearch').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const dateFilter = document.getElementById('dateFilter').value;
+    const classFilter = document.getElementById('classFilter').value;
+    
+    const rows = document.querySelectorAll('#registrationsTable tbody tr');
+    
+    rows.forEach(row => {
+        const studentName = row.cells[2].textContent.toLowerCase();
+        const studentCode = row.cells[3].textContent.toLowerCase();
+        const className = row.cells[4].textContent;
+        const registrationDate = row.cells[5].textContent;
+        const status = row.dataset.status;
+        
+        const matchesSearch = studentName.includes(searchText) || studentCode.includes(searchText);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesDate = !dateFilter || registrationDate.includes(dateFilter);
+        const matchesClass = !classFilter || className === classFilter;
+        
+        row.style.display = (matchesSearch && matchesStatus && matchesDate && matchesClass) ? '' : 'none';
+    });
+    
+    // Cập nhật lại trạng thái checkbox sau khi filter
+    updateSelectAllState();
+}
+
+async function approveRegistration(registrationId, noReload = false) {
+    try {
+        const response = await fetch('/api/registration/update-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                registration_id: registrationId,
+                status: 'approved'
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success && !noReload) {
+            showNotification('Đã duyệt đăng ký thành công', 'success');
+            setTimeout(() => location.reload(), 1500);
+        }
+        return result.success;
+    } catch (error) {
+        console.error('Error:', error);
+        if (!noReload) {
+            showNotification('Lỗi khi duyệt đăng ký', 'error');
+        }
+        return false;
+    }
+}
+
+async function restoreRegistration(registrationId) {
+    if (confirm('Bạn có chắc muốn khôi phục đăng ký này?')) {
+        try {
+            const response = await fetch('/api/registration/restore', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    registration_id: registrationId
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showNotification('✅ Đã khôi phục đăng ký thành công', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showNotification(`❌ ${result.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('❌ Lỗi khi khôi phục đăng ký', 'error');
+        }
+    }
+}
+
+async function rejectRegistration(registrationId, reason, noReload = false) {
+    try {
+        const response = await fetch('/api/registration/update-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({
+                registration_id: registrationId,
+                status: 'rejected',
+                reason: reason
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success && !noReload) {
+            showNotification(`Đã từ chối đăng ký với lý do: ${reason}`, 'warning');
+            setTimeout(() => location.reload(), 1500);
+        }
+        return result.success;
+    } catch (error) {
+        console.error('Error:', error);
+        if (!noReload) {
+            showNotification('Lỗi khi từ chối đăng ký', 'error');
+        }
+        return false;
+    }
+}
+
+// Hàm lấy CSRF token
+function getCSRFToken() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    return csrfToken ? csrfToken.getAttribute('content') : '';
+}
+
+function viewRegistration(registrationId) {
+    alert('Xem chi tiết đăng ký: ' + registrationId);
+    // Implement view registration details
+}
+
+function addNote(registrationId) {
+    const note = prompt('Thêm ghi chú:');
+    if (note !== null) {
+        alert(`Đã thêm ghi chú cho đăng ký ${registrationId}: ${note}`);
+        // Implement add note
+    }
+}
+
+function exportRegistrations() {
+    window.location.href = "{{ url_for('export_registrations_excel') }}";
+}
+
+</script>
+{% endblock %}

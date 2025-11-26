@@ -1,0 +1,498 @@
+{% extends "layout.html" %}
+
+{% block title %}Quản lý Sinh Viên - Student Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .student-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    
+    .gpa-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 10px;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .status-active { background-color: #198754; }
+    .status-inactive { background-color: #6c757d; }
+    .status-warning { background-color: #ffc107; }
+    
+    .batch-actions {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-user-graduate me-2"></i>Quản lý Sinh Viên
+    </h1>
+    <div>
+        <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="fas fa-file-import me-2"></i>Import Excel
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+            <i class="fas fa-user-plus me-2"></i>Thêm Sinh Viên
+        </button>
+    </div>
+</div>
+
+<!-- Batch Actions -->
+<div class="batch-actions">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h6 class="mb-0 text-primary">
+                <i class="fas fa-cogs me-2"></i>Thao tác hàng loạt
+            </h6>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group">
+                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('export_students_excel') }}">
+                    <i class="fas fa-file-export me-2"></i>Export Excel
+                </a>
+                <button class="btn btn-outline-warning btn-sm" onclick="sendBulkEmail()">
+                    <i class="fas fa-envelope me-2"></i>Gửi Email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Tìm kiếm</label>
+                <input type="text" class="form-control" placeholder="Mã SV, tên, lớp..." id="searchInput">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Khóa học</label>
+                <select class="form-select" id="courseFilter">
+                    <option value="">Tất cả</option>
+                    <option value="K2020">K2020</option>
+                    <option value="K2021">K2021</option>
+                    <option value="K2022">K2022</option>
+                    <option value="K2023">K2023</option>
+                    <option value="K2024">K2024</option>
+                    <option value="K2025">K2025</option>
+                    <option value="K2026">K2026</option>
+                    
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Lớp</label>
+                <select class="form-select" id="classFilter">
+                    <option value="">Tất cả</option>
+                    <option value="CT1">CT1</option>
+                    <option value="CT2">CT2</option>
+                    <option value="CT3">CT3</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Trạng thái</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Tất cả</option>
+                    <option value="active">Đang học</option>
+                    <option value="inactive">Ngừng học</option>
+                    <option value="warning">Cảnh báo</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary w-100" onclick="filterStudents()">
+                        <i class="fas fa-filter me-2"></i>Lọc
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetFilters()">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students Table -->
+<div class="card shadow">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary">
+            <i class="fas fa-list me-2"></i>Danh sách Sinh Viên
+        </h5>
+        <span class="badge bg-primary">{{ students|length }} sinh viên</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="studentsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th width="50">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                        </th>
+                        <th>Mã SV</th>
+                        <th>Sinh viên</th>
+                        <th>Lớp</th>
+                        <th>Khóa</th>
+                        <th>GPA</th>
+                        <th>Trạng thái</th>
+                        <th>Liên hệ</th>
+                        <th width="120" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input student-checkbox" value="{{ student.id }}">
+                        </td>
+                        <td>
+                            <strong class="text-primary">{{ student.student_id }}</strong>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ student.avatar or url_for('static', filename='images/default-avatar.png') }}" 
+                                     alt="Avatar" class="student-avatar me-3">
+                                <div>
+                                    <h6 class="mb-0">{{ student.full_name }}</h6>
+                                    <small class="text-muted">{{ student.email }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if student.classes %}
+                               {% for class in student.classes %}
+                                <span class="badge bg-primary mb-1">{{ class.class_name }}</span>
+                                    {% if not loop.last %}<br>{% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ student.course }}</span>
+                        </td>
+                        <td>
+                            {% if student.gpa %}
+                                <span class="badge gpa-badge 
+                                    {% if student.gpa >= 3.6 %}bg-success
+                                    {% elif student.gpa >= 2.5 %}bg-warning
+                                    {% else %}bg-danger{% endif %}">
+                                    GPA: {{ "%.2f"|format(student.gpa) }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Chưa có</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if student.status == 'active' %}
+                                <span class="status-indicator status-active"></span>
+                                <span class="text-success">Đang học</span>
+                            {% elif student.status == 'warning' %}
+                                <span class="status-indicator status-warning"></span>
+                                <span class="text-warning">Cảnh báo</span>
+                            {% else %}
+                                <span class="status-indicator status-inactive"></span>
+                                <span class="text-secondary">Ngừng học</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ student.phone or 'N/A' }}</small>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary"
+                                        data-bs-toggle="tooltip"
+                                        title="Xem chi tiết"
+                                        onclick="viewStudent({{ student.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-warning"
+                                        data-bs-toggle="tooltip"
+                                        title="Chỉnh sửa"
+                                        onclick="editStudent({{ student.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-outline-info"
+                                        data-bs-toggle="tooltip"
+                                        title="Xem điểm"
+                                        onclick="viewScores({{ student.id }})">
+                                    <i class="fas fa-chart-bar"></i>
+                                </button>
+                                <button class="btn btn-outline-danger"
+                                        data-bs-toggle="tooltip"
+                                        title="Xóa khỏi lớp"
+                                        onclick="removeFromClass({{ student.id }}, '{{ student.full_name }}')">
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <span class="text-muted">Hiển thị {{ students|length }} trên tổng số 1,245 sinh viên</span>
+            </div>
+            <div class="col-md-6">
+                <nav aria-label="Page navigation" class="float-end">
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#">Previous</a>
+                        </li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="#">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Thêm Sinh Viên Mới
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('manage_students') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Mã sinh viên *</label>
+                                <input type="text" class="form-control" name="student_id" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Họ và tên *</label>
+                                <input type="text" class="form-control" name="full_name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email *</label>
+                                <input type="email" class="form-control" name="email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Ngày sinh</label>
+                                <input type="date" class="form-control" name="birth_date">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Lớp *</label>
+                                <select class="form-select" name="class_id" required>
+                                    <option value="">Chọn lớp</option>
+                                    <option value="1">CT1 - Công nghệ thông tin 1</option>
+                                    <option value="2">CT2 - Công nghệ thông tin 2</option>
+                                    <option value="3">CT3 - Công nghệ thông tin 3</option>
+
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Khóa học *</label>
+                                <select class="form-select" name="course" required>
+                                    <option value="">Chọn khóa</option>
+                                    <option value="2020">K2020</option>
+                                    <option value="2021">K2021</option>
+                                    <option value="2022">K2022</option>
+                                    <option value="2023">K2023</option>
+                                    <option value="2024">K2024</option>
+                                    <option value="2025">K2025</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Số điện thoại</label>
+                                <input type="tel" class="form-control" name="phone">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Địa chỉ</label>
+                                <textarea class="form-control" name="address" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Thêm Sinh Viên</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-import me-2"></i>Import từ Excel
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Tải file Excel mẫu để import dữ liệu sinh viên.
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Chọn file Excel</label>
+                    <input type="file" class="form-control" accept=".xlsx, .xls">
+                </div>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="updateExisting">
+                    <label class="form-check-label" for="updateExisting">
+                        Cập nhật sinh viên đã tồn tại
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-success">
+                    <i class="fas fa-download me-2"></i>Tải file mẫu
+                </button>
+                <button type="button" class="btn btn-success">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
+function filterStudents() {
+    const searchText = document.getElementById('searchInput').value.toLowerCase();
+    const courseFilter = document.getElementById('courseFilter').value; // "K2023"
+    const classFilter = document.getElementById('classFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('#studentsTable tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const studentId = row.cells[1].textContent.toLowerCase();
+        const studentName = row.cells[2].textContent.toLowerCase();
+        const className = row.cells[3].textContent.trim();
+        
+        // FIX: Lấy text từ badge course và chuẩn hóa
+        const courseBadge = row.cells[4].querySelector('.badge');
+        const course = courseBadge ? courseBadge.textContent.trim() : row.cells[4].textContent.trim();
+        
+        // FIX: Chuẩn hóa course value để so sánh
+        const normalizedCourse = course; // "K2023"
+        const normalizedCourseFilter = courseFilter; // "K2023"
+
+        
+        const statusText = row.cells[6].textContent.toLowerCase();
+        
+        const matchesSearch = studentId.includes(searchText) || studentName.includes(searchText);
+        const matchesCourse = !courseFilter || normalizedCourse === normalizedCourseFilter;
+        const matchesClass = !classFilter || className === classFilter;
+        const matchesStatus = !statusFilter || statusText.includes(statusFilter);
+        
+        const shouldShow = matchesSearch && matchesCourse && matchesClass && matchesStatus;
+        row.style.display = shouldShow ? '' : 'none';
+        
+        if (shouldShow) visibleCount++;
+    });
+    
+    // Update counter
+    const counterElement = document.querySelector('.card-footer .text-muted');
+    if (counterElement) {
+        counterElement.textContent = `Hiển thị ${visibleCount} trên tổng số ${rows.length} sinh viên`;
+    }
+}
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('courseFilter').value = '';
+    document.getElementById('classFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterStudents();
+}
+
+
+function viewStudent(studentId) {
+    alert('Xem chi tiết sinh viên: ' + studentId);
+    // Implement view student details
+}
+
+function editStudent(studentId) {
+    alert('Chỉnh sửa sinh viên: ' + studentId);
+    // Implement edit student
+}
+
+function viewScores(studentId) {
+    alert('Xem điểm sinh viên: ' + studentId);
+    // Implement view scores
+}
+
+function exportStudents() {
+    window.location.href = "{{ url_for('export_students_excel') }}";
+}
+
+
+function exportPDF() {
+    alert('Export danh sách sinh viên ra PDF');
+    // Implement export to PDF
+}
+
+function sendBulkEmail() {
+    const selectedStudents = Array.from(document.querySelectorAll('.student-checkbox:checked'))
+        .map(checkbox => checkbox.value);
+    
+    if (selectedStudents.length === 0) {
+        alert('Vui lòng chọn ít nhất một sinh viên');
+        return;
+    }
+    
+    alert(`Gửi email cho ${selectedStudents.length} sinh viên`);
+    // Implement bulk email
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Chạy filter ngay khi trang load
+    filterStudents();
+
+});
+</script>
+{% endblock %}
