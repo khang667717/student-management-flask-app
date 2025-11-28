@@ -324,6 +324,8 @@
         </div>
     </div>
 </div>
+
+<!-- View User Modal -->
 <div class="modal fade" id="viewUserModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -344,6 +346,9 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-warning" id="resetPasswordBtn" onclick="resetPassword()">
+                    <i class="fas fa-key me-2"></i>Reset Mật Khẩu
+                </button>
             </div>
         </div>
     </div>
@@ -384,6 +389,196 @@
 
 {% block extra_js %}
 <script>
+
+// Xem chi tiết user
+function viewUser(userId) {
+    // Lưu userId vào attribute của modal để sử dụng cho reset password
+    document.getElementById('viewUserModal').setAttribute('data-user-id', userId);
+    
+    fetch(`/view_user/${userId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const content = `
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <img src="${data.avatar}" 
+                             alt="Avatar" class="img-thumbnail rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
+                        <h4>${data.full_name}</h4>
+                        <p class="text-muted">@${data.username}</p>
+                        <span class="badge ${getRoleBadgeClass(data.role)}">${getRoleText(data.role)}</span>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-6">
+                                <h6>Thông tin cá nhân</h6>
+                                <p><strong>Email:</strong> ${data.email}</p>
+                                <p><strong>Điện thoại:</strong> ${data.phone}</p>
+                                <p><strong>Địa chỉ:</strong> ${data.address}</p>
+                            </div>
+                            <div class="col-6">
+                                <h6>Thông tin tài khoản</h6>
+                                <p><strong>Username:</strong> ${data.username}</p>
+                                <p><strong>Trạng thái:</strong> 
+                                    <span class="badge ${data.is_active ? 'bg-success' : 'bg-secondary'}">
+                                        ${data.is_active ? 'Đang hoạt động' : 'Không hoạt động'}
+                                    </span>
+                                </p>
+                                <p><strong>Ngày tạo:</strong> ${data.created_at}</p>
+                                <p><strong>Lần đăng nhập cuối:</strong> ${data.last_login}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Thông tin mật khẩu -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-key me-2"></i>Quản lý mật khẩu
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="text-muted mb-3">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Mật khẩu đã được mã hóa và không thể xem được. 
+                                            Bạn có thể reset mật khẩu về mặc định "123456"
+                                        </p>
+                                        <div class="alert alert-warning">
+                                            <small>
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                Sau khi reset, mật khẩu mới sẽ là: <strong>123456</strong>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        ${data.role === 'teacher' ? `
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6>Thông tin giáo viên</h6>
+                                <p><strong>Mã giáo viên:</strong> ${data.teacher_code || 'N/A'}</p>
+                                <p><strong>Chuyên ngành:</strong> ${data.department || 'N/A'}</p>
+                                <p><strong>Chức vụ:</strong> ${data.position || 'N/A'}</p>
+                                <p><strong>Ngày vào trường:</strong> ${data.join_date || 'N/A'}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${data.role === 'student' ? `
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6>Thông tin sinh viên</h6>
+                                <p><strong>Mã sinh viên:</strong> ${data.student_id || 'N/A'}</p>
+                                <p><strong>Khóa:</strong> ${data.course || 'N/A'}</p>
+                                <p><strong>Lớp:</strong> 
+                                    ${data.class_names && data.class_names.length > 0 ? 
+                                        `<div class="d-flex flex-wrap gap-1 mt-1">
+                                            ${data.class_names.map(cls => `<span class="badge bg-primary">${cls}</span>`).join('')}
+                                        </div>` : 
+                                        'Chưa phân lớp'}
+                                </p>
+                                <p><strong>GPA:</strong> ${data.gpa || 'N/A'}</p>
+                                <p><strong>Trạng thái:</strong> ${data.status || 'N/A'}</p>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('viewUserContent').innerHTML = content;
+            
+            // Hiển thị modal
+            const modal = new bootstrap.Modal(document.getElementById('viewUserModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('viewUserContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Lỗi khi tải thông tin user. Vui lòng thử lại.
+                </div>
+            `;
+        });
+}
+
+// Reset mật khẩu
+function resetPassword() {
+    const userId = document.getElementById('viewUserModal').getAttribute('data-user-id');
+    if (!userId) {
+        alert('Không tìm thấy user ID');
+        return;
+    }
+    
+    if (!confirm('Bạn có chắc muốn reset mật khẩu của user này? Mật khẩu mới sẽ là: 123456')) {
+        return;
+    }
+    
+    // Hiển thị loading
+    const resetBtn = document.getElementById('resetPasswordBtn');
+    const originalText = resetBtn.innerHTML;
+    resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang reset...';
+    resetBtn.disabled = true;
+    
+    // Gọi API reset mật khẩu
+    fetch(`/admin/reset-password/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showFlashMessage(data.message, 'success');
+            // Đóng modal sau 2 giây
+            setTimeout(() => {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('viewUserModal'));
+                modal.hide();
+            }, 2000);
+        } else {
+            showFlashMessage(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showFlashMessage('Lỗi kết nối. Vui lòng thử lại.', 'error');
+    })
+    .finally(() => {
+        // Khôi phục trạng thái nút
+        resetBtn.innerHTML = originalText;
+        resetBtn.disabled = false;
+    });
+}
+
+// Utility functions
+function getRoleBadgeClass(role) {
+    const roleMap = {
+        'admin': 'bg-danger',
+        'teacher': 'bg-warning', 
+        'student': 'bg-primary'
+    };
+    return roleMap[role] || 'bg-secondary';
+}
+
+function getRoleText(role) {
+    const roleMap = {
+        'admin': 'Quản trị viên',
+        'teacher': 'Giáo viên', 
+        'student': 'Sinh viên'
+    };
+    return roleMap[role] || role;
+}
+
 function toggleRoleFields() {
     const role = document.getElementById('role').value;
     const departmentField = document.getElementById('department-field');

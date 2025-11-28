@@ -619,6 +619,20 @@ Nếu bạn nhận được email này, cấu hình email đang hoạt động t
     @admin_required
     def view_user(user_id):
         user = User.query.get_or_404(user_id)
+
+        # Hàm mapping department
+        def get_department_display(department_code):
+            dept_map = {
+            'cntt': 'Công nghệ thông tin',
+            'csdl': 'Cơ sở dữ liệu',
+            'nmhm': 'Nhập môn học máy',
+            'ptdll': 'Phân tích dữ liệu lớn',
+            'anh': 'Ngôn ngữ anh',
+            'kt': 'Kế Toán',
+            'qtkd': 'Quản trị kinh doanh', 
+            'dl': 'Du lịch'
+        }
+            return dept_map.get(department_code, department_code)
     
         user_data = {
         'id': user.id,
@@ -638,23 +652,23 @@ Nếu bạn nhận được email này, cấu hình email đang hoạt động t
         if user.is_teacher and user.teacher_profile:
             user_data.update({
             'teacher_code': user.teacher_profile.teacher_code,
-            'department': user.teacher_profile.department,
+            'department': get_department_display(user.teacher_profile.department),
             'position': user.teacher_profile.position,
             'join_date': user.teacher_profile.join_date.strftime('%d/%m/%Y') 
             if user.teacher_profile.join_date else 'N/A'
           })
         elif user.is_student and user.student_profile:
+            class_names = [cls.class_name for cls in user.student_profile.classes] if user.student_profile.classes else []
             user_data.update({
             'student_id': user.student_profile.student_id,
             'course': user.student_profile.course,
-            'class_name': user.student_profile.class_.class_name 
-            if user.student_profile.class_ else 'Chưa phân lớp',
+            'class_names': class_names,  # Danh sách lớp
+            'class_name': ', '.join(class_names) if class_names else 'Chưa phân lớp',
             'gpa': user.student_profile.gpa,
             'status': user.student_profile.status
-           })
-    
-        return jsonify(user_data)
+        })
 
+        return jsonify(user_data)
      
 
     @app.route('/admin/manage-students')
@@ -747,6 +761,28 @@ Nếu bạn nhận được email này, cấu hình email đang hoạt động t
             flash(f'Lỗi khi thêm giáo viên: {str(e)}', 'error')
         return redirect(url_for('manage_teachers'))
     
+    @app.route('/admin/reset-password/<int:user_id>', methods=['POST'])
+    @login_required
+    @admin_required
+    def reset_password(user_id):
+        """Reset mật khẩu user về mặc định"""
+        try:
+            user = User.query.get_or_404(user_id)
+            new_password = '123456'  # Mật khẩu mặc định
+            user.set_password(new_password)
+            db.session.commit()
+        
+            return jsonify({
+            'success': True,
+            'message': f'Đã reset mật khẩu cho user {user.full_name}. Mật khẩu mới: 123456'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+            'success': False,
+            'message': f'Lỗi: {str(e)}'
+            }), 500
+        
     @app.route('/admin/export-students-excel')
     @login_required
     @admin_required
