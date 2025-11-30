@@ -89,3 +89,36 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// Footer functionality
+function initFooter() {
+    // Smooth scroll to top
+    const scrollToTopBtn = document.getElementById('scrollToTop');
+    if (scrollToTopBtn) {
+        scrollToTopBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    }
+    
+    // Newsletter form submission
+    const newsletterForm = document.querySelector('.newsletter form');
+    if (newsletterForm) {
+        newsletterForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = this.querySelector('input[type="email"]').value;
+            // Handle newsletter subscription
+            console.log('Newsletter subscription:', email);
+            // You can add AJAX call here
+        });
+    }
+}
+
+// Initialize footer when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing code ...
+    
+    initFooter();
+});

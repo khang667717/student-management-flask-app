@@ -201,3 +201,103 @@ footer {
 .bg-gradient-success {
     background: linear-gradient(135deg, var(--success-color), #20c997) !important;
 }
+
+/* Footer Styles */
+footer {
+    background: linear-gradient(135deg, #1a1a1a, #2d2d2d) !important;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+}
+
+.footer-link {
+    transition: all 0.3s ease;
+    position: relative;
+    padding-left: 5px;
+}
+
+.footer-link:hover {
+    color: var(--primary-color) !important;
+    padding-left: 10px;
+}
+
+.footer-link:hover i {
+    color: var(--primary-color);
+}
+
+.social-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* Facebook hover */
+.social-icon.facebook:hover {
+    background-color: #1877F2 !important;
+    transform: translateY(-3px);
+}
+
+/* Twitter hover */
+.social-icon.twitter:hover {
+    background-color: #1DA1F2 !important;
+    transform: translateY(-3px);
+}
+
+/* LinkedIn hover */
+.social-icon.linkedin:hover {
+    background-color: #0077B5 !important;
+    transform: translateY(-3px);
+}
+
+/* YouTube hover */
+.social-icon.youtube:hover {
+    background-color: #FF0000 !important;
+    transform: translateY(-3px);
+}
+
+/* Instagram hover */
+.social-icon.instagram:hover {
+    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888) !important;
+    transform: translateY(-3px);
+}
+
+.newsletter .form-control {
+    border-radius: 10px 0 0 10px;
+    border: none;
+}
+
+.newsletter .btn {
+    border-radius: 0 10px 10px 0;
+}
+
+.contact-info i {
+    width: 20px;
+}
+
+/* Responsive Footer */
+@media (max-width: 768px) {
+    footer .row > div {
+        margin-bottom: 2rem;
+    }
+    
+    .footer-brand {
+        justify-content: center;
+        text-align: center;
+        flex-direction: column;
+    }
+    
+    .social-links {
+        text-align: center;
+    }
+    
+    .text-md-end {
+        text-align: center !important;
+    }
+}
