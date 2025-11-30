@@ -195,9 +195,7 @@ def create_app(config_name='default'):
         if response.status_code == 200:
            response.set_cookie('csrf_token', generate_csrf())
         return response
-    
-    # Register blueprints or routes would go here
-    # For now, we'll define all routes in this file for simplicity
+
     
     # Utility functions
     def allowed_file(filename):
@@ -363,7 +361,6 @@ Nếu bạn nhận được email này, cấu hình email đang hoạt động t
             student_id = form.student_id.data
             
             # (Bạn vẫn giữ các kiểm tra trùng lặp khác nếu cần, nhưng 
-            # tốt nhất nên đặt logic kiểm tra này vào hàm validate của RegistrationForm trong forms.py)
             
             if User.query.filter_by(username=username).first():
                 flash('Tên đăng nhập đã tồn tại.', 'error')
@@ -409,27 +406,7 @@ Nếu bạn nhận được email này, cấu hình email đang hoạt động t
         flash('Đã đăng xuất thành công.', 'info')
         return redirect(url_for('index'))
     
-    @app.route('/admin/import-data', methods=['GET', 'POST'])
-    @login_required
-    @admin_required
-    def import_data():
-        if request.method == 'POST':
-            # Xu ly du lieu tu form
-            if 'file' not in request.files:
-                flash('Khong tim thay file', 'error')
-                return redirect(request.url)
-            
-            file  = request.files['file']
-            if file.filename == '':
-                flash('Khong tim thay file', 'error')
-                return redirect(request.url)
-            
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                flash('File uploaded successfully', 'success')
-                return redirect(url_for('import_data'))
-        
-        return render_template('admin/import_data.html')
+    
 
      # API đồng bộ hệ thống
     @app.route('/api/system/sync', methods=['POST'])
